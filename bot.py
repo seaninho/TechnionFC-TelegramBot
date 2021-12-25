@@ -73,6 +73,7 @@ def help_command(update, context):
               f'/add \- add yourself to the list\n' \
               f'/remove \- remove yourself from the list\n' \
               f'/approve \- approve you\'ll be attending the match\n' \
+              f'/ball \- inform you\'ll be bringing a match ball\n' \
               f'/rules \- print match rules\n' \
               f'/schedule \- print the bot\'s schedule\n' \
               f'\n*Available only to admins* :\n' \
@@ -177,6 +178,23 @@ def approve_command(update, context):
     index = playing.index(player)
     playing[index].approved = True
     user.send_message(f'{user.full_name}, you\'ve approved you\'ll be attending the match!')
+
+
+def ball_command(update, context):
+    """Mark player approval for bringing a match ball"""
+    user = update.message.from_user
+    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_public_warning(user, 'ball'))
+
+    player = TechnionFCPlayer(user)
+    if player not in playing:
+        return user.send_message(f'Hi {user.full_name}, you\'re not listed at all.\n\nNo need to bring a match ball!')
+    index = playing.index(player)
+    playing[index].match_ball = not playing[index].match_ball
+    if playing[index].match_ball:
+        user.send_message(f'Hi {user.full_name}, you\'re in charge of bringing a match ball!')
+    else:
+        user.send_message(f'Hi {user.full_name}, you\'re not in charge of bringing a match ball anymore')
 
 
 def rules_command(update, context):
@@ -316,6 +334,7 @@ def main():
     dp.add_handler(CommandHandler("add", add_command))
     dp.add_handler(CommandHandler("remove", remove_command))
     dp.add_handler(CommandHandler("approve", approve_command))
+    dp.add_handler(CommandHandler("ball", ball_command))
     dp.add_handler(CommandHandler("rules", rules_command))
     dp.add_handler(CommandHandler("schedule", schedule_command))
 
