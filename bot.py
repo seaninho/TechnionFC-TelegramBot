@@ -1,10 +1,14 @@
 import re
 import logging
+from datetime import datetime, time
+from pytz import timezone
+from collections import deque
 
 from telegram import TelegramError
 from telegram.ext import Updater, CommandHandler
 
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_GROUP_INVITE_LINK, PORT
+from TechnionFCPlayer import TechnionFCPlayer
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -16,6 +20,9 @@ logger = logging.getLogger(__name__)
 CLIPBOARD_EMOJI_CODE = '\U0001F4CB'
 OK_SIGN_EMOJI_CODE = '\U0001F44C'
 SCROLL_EMOJI_CODE = '\U0001F4DC'
+
+# Playing list. This data structure functions as a waiting list as well
+playing = deque()
 
 
 def start_command(update, context):
@@ -53,16 +60,48 @@ def help_command(update, context):
               f'himself from the playing list or if an admin removed one of the players\.\n\n' \
               f'8\. Every matchday, the players on the playing list MUST approve their attendance by 16:00\.\n' \
               f'Players who fail to do so will be removed from the playing list\!\n\n' \
-              f'9\. Creating a list for Monday becomes possible on Saturday evening starting at 21:30\.\n\n' \
+              f'9\. Creating a list for Monday becomes possible on Saturday evening starting at 21:30\.\n' \
+              f'Creating a list for Thursday becomes possible on Tuesday evening starting at 21:30\.\n\n' \
               f'10\. Telegram Bots cannot initiate a conversation with a user \(there is no way around this\)\.\n' \
               f'So, when possible, please use bot commands in a private chat @ https://t\.me/FCTechnionBot\n' \
               f'\n*Available user commands* :\n' \
+              f'/create \- create a new list\n' \
               f'/rules \- print match rules\n' \
               f'/schedule \- print the bot\'s schedule\n' \
               f'\n*Available only to admins* :\n' \
               f'/start \- start the bot\n'
 
     user.send_message(message, parse_mode='MarkdownV2')
+
+
+def create_command(update, context):
+    """Create a playing list"""
+    user = update.message.from_user
+    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_public_warning(user, 'create'))
+
+    day = datetime.now(tz=timezone('Asia/Jerusalem')).weekday()
+    current_time = datetime.now(tz=timezone('Asia/Jerusalem'))
+    if day == 1 and current_time.time() < time(hour=21, minute=30, tzinfo=timezone('Asia/Jerusalem')):
+        return user.send_message(f'Hi {user.full_name}, club rules state that creating a list for Thursday '
+                                 f'becomes possible on Tuesday evening starting at 21:30!')
+    if day == 4 or (day == 5 and current_time.time() < time(hour=21, minute=30, tzinfo=timezone('Asia/Jerusalem'))):
+        return user.send_message(f'Hi {user.full_name}, club rules state that creating a list for Monday '
+                                 f'becomes possible on Saturday evening starting at 21:30!')
+    if not user_full_name_is_valid(user):
+        return user.send_message(f'Hi {user.full_name}, your telegram name is invalid!\n\n'
+                                 f'Please use /help to read on our naming rules, change it, and try again')
+
+    if playing:
+        return user.send_message(f'Playing list is not empty!\n\n{user.full_name}, '
+                                 f'please add yourself to current queue using the /add command')
+
+    player = TechnionFCPlayer(user, liable=True)
+    playing.append(player)
+    context.bot.send_message(TELEGRAM_CHAT_ID, f'{user.full_name} has created a new playing list!')
+    user.send_message(f'Congratulations {user.full_name}, you\'ve created a new playing list!\n\n'
+                      f'Please note, you\'re liable for the match!\n'
+                      f'For more information, please see the /help message')
 
 
 def rules_command(update, context):
@@ -178,6 +217,7 @@ def main():
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start_command, pass_job_queue=True))
     dp.add_handler(CommandHandler("help", help_command))
+    dp.add_handler(CommandHandler("create", create_command))
     dp.add_handler(CommandHandler("rules", rules_command))
     dp.add_handler(CommandHandler("schedule", schedule_command))
 
