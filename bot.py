@@ -17,7 +17,8 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Constants
-LIST_MAX_SIZE = 15            # there are 3 teams, each team has 5 players (set by pitch size)
+MATCHDAYS = (0, 3)                  # matchdays are Monday and Thursday
+LIST_MAX_SIZE = 15                  # there are 3 teams, each team has 5 players (set by pitch size)
 
 # Emojis
 CLIPBOARD_EMOJI_CODE = '\U0001F4CB'
@@ -70,6 +71,7 @@ def help_command(update, context):
               f'\n*Available user commands* :\n' \
               f'/create \- create a new list\n' \
               f'/add \- add yourself to the list\n' \
+              f'/approve \- approve you\'ll be attending the match\n' \
               f'/rules \- print match rules\n' \
               f'/schedule \- print the bot\'s schedule\n' \
               f'\n*Available only to admins* :\n' \
@@ -136,6 +138,25 @@ def add_command(update, context):
             return user.send_message(f'Congratulations {user.full_name}, you\'re on the playing list!\n')
         else:
             return user.send_message(f'Playing list is full!\n\n{user.full_name}, you\'re on the waiting list')
+
+
+def approve_command(update, context):
+    """Mark player approval for attending the match"""
+    user = update.message.from_user
+    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_public_warning(user, 'approve'))
+
+    day = datetime.now(tz=timezone('Asia/Jerusalem')).weekday()
+    if day not in MATCHDAYS:
+        return user.send_message(f'Hi {user.full_name}, please wait for matchday to approve your attendance!')
+
+    player = TechnionFCPlayer(user)
+    if player not in playing:
+        return user.send_message(f'Hi {user.full_name}, you\'re not listed at all.\n\nNo need to approve!')
+
+    index = playing.index(player)
+    playing[index].approved = True
+    user.send_message(f'{user.full_name}, you\'ve approved you\'ll be attending the match!')
 
 
 def rules_command(update, context):
@@ -253,6 +274,7 @@ def main():
     dp.add_handler(CommandHandler("help", help_command))
     dp.add_handler(CommandHandler("create", create_command))
     dp.add_handler(CommandHandler("add", add_command))
+    dp.add_handler(CommandHandler("approve", approve_command))
     dp.add_handler(CommandHandler("rules", rules_command))
     dp.add_handler(CommandHandler("schedule", schedule_command))
 
