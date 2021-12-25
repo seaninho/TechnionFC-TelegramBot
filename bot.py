@@ -1,3 +1,4 @@
+import re
 import logging
 
 from telegram import TelegramError
@@ -133,6 +134,18 @@ def is_group_member(update, context, user):
                                   f'To join our group, please use {TELEGRAM_GROUP_INVITE_LINK}')
     finally:
         return user_is_group_member
+
+
+def user_full_name_is_valid(user):
+    """Check if user's full name is valid"""
+    if len(user.first_name) <= 1 or user.last_name is None or len(user.last_name) <= 1:
+        return False
+
+    regex = re.compile('[.,@_\-!#$%^&*()<>?/\|}{~:0123456789]')
+    if regex.search(user.full_name) is not None:
+        return False
+
+    return True
 
 
 def get_command_in_public_warning(user, command):
