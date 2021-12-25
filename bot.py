@@ -27,6 +27,7 @@ CHECK_MARK_EMOJI_CODE = '\U00002705'
 CLIPBOARD_EMOJI_CODE = '\U0001F4CB'
 HOURGLASS_EMOJI_CODE = '\U000023F3'
 FOOTBALL_EMOJI_CODE = '\U000026BD'
+NO_ENTRY_EMOJI_CODE = '\U000026D4'
 OK_SIGN_EMOJI_CODE = '\U0001F44C'
 POINTING_EMOJI_CODE = '\U0000261D'
 SCROLL_EMOJI_CODE = '\U0001F4DC'
@@ -317,6 +318,41 @@ def kindly_reminder(context):
 
     context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode='MarkdownV2')
 
+
+def final_reminder(context):
+    """Final reminder for players to approve their attendance"""
+    if all(player.approved for player in playing):
+        return
+
+    text = ''
+    playing_yet_to_approve = [player for player in playing
+                              if playing.index(player) < LIST_MAX_SIZE and not player.approved]
+    if playing_yet_to_approve:
+        text += f'{ALARM_EMOJI_CODE}  It\'s 15:00 on matchday  {ALARM_EMOJI_CODE}\n\n' \
+               f'This is a final reminder for\n\n'
+        for player in playing_yet_to_approve:
+            text += f'{player.user.mention_markdown_v2()}\n'
+        text += f'\nPlease approve you\'ll be attending the match\!\n' \
+                f'{NO_ENTRY_EMOJI_CODE}  *If you will not approve your attendance in the next hour, ' \
+                f'you\'ll lose your place on the playing list\!*  {NO_ENTRY_EMOJI_CODE}'
+
+    if len(playing) > LIST_MAX_SIZE:        # waiting list is not empty
+        waiting_yet_to_approve = [player for player in playing
+                                  if playing.index(player) >= LIST_MAX_SIZE and not player.approved]
+        if waiting_yet_to_approve:
+            if playing_yet_to_approve:
+                text += f'\n\nThis is also a kindly reminder for\n\n'
+            else:
+                text += f'{ALARM_EMOJI_CODE}  It\'s 16:00 on matchday  {ALARM_EMOJI_CODE}\n\n' \
+                        f'This is a kindly reminder for\n\n'
+            for player in waiting_yet_to_approve:
+                text += f'{player.user.mention_markdown_v2()}\n'
+            text += f'\n*It is advisable to approve your attendance\!*\nWhen promoting players from ' \
+                    f'the waiting list, the bot will prioritize players who\'ve approved their attendance\!'
+
+    if text:
+        context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode='MarkdownV2')
+
 # endregion
 
 # region HELPER FUNCTIONS
@@ -420,6 +456,11 @@ def main():
     # run kindly_reminder every matchday @ 12:30
     dp.job_queue.run_daily(kindly_reminder,
                            time(hour=12, minute=30, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS)
+
+    # run final_reminder every matchday @ 15:00
+    dp.job_queue.run_daily(final_reminder,
+                           time(hour=15, minute=0, tzinfo=timezone('Asia/Jerusalem')),
                            days=MATCHDAYS)
 
     # Start the Bot
