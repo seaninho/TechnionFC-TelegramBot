@@ -21,9 +21,15 @@ MATCHDAYS = (0, 3)                  # matchdays are Monday and Thursday
 LIST_MAX_SIZE = 15                  # there are 3 teams, each team has 5 players (set by pitch size)
 
 # Emojis
+CALENDAR_EMOJI_CODE = '\U0001F4C5'
+CHECK_MARK_EMOJI_CODE = '\U00002705'
 CLIPBOARD_EMOJI_CODE = '\U0001F4CB'
+HOURGLASS_EMOJI_CODE = '\U000023F3'
+FOOTBALL_EMOJI_CODE = '\U000026BD'
 OK_SIGN_EMOJI_CODE = '\U0001F44C'
+POINTING_EMOJI_CODE = '\U0000261D'
 SCROLL_EMOJI_CODE = '\U0001F4DC'
+STOPWATCH_EMOJI_CODE = '\U000023F1'
 
 # Playing list. This data structure functions as a waiting list as well
 playing = deque()
@@ -74,6 +80,7 @@ def help_command(update, context):
               f'/remove \- remove yourself from the list\n' \
               f'/approve \- approve you\'ll be attending the match\n' \
               f'/ball \- inform you\'ll be bringing a match ball\n' \
+              f'/print \- print the list\n' \
               f'/rules \- print match rules\n' \
               f'/schedule \- print the bot\'s schedule\n' \
               f'\n*Available only to admins* :\n' \
@@ -195,6 +202,42 @@ def ball_command(update, context):
         user.send_message(f'Hi {user.full_name}, you\'re in charge of bringing a match ball!')
     else:
         user.send_message(f'Hi {user.full_name}, you\'re not in charge of bringing a match ball anymore')
+
+
+def print_command(update, context):
+    """Print both playing and waiting lists"""
+    user = update.message.from_user
+    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_public_warning(user, 'print'))
+
+    day = datetime.now(tz=timezone('Asia/Jerusalem')).weekday()
+    if 1 <= day <= 3:       # Tuesday - Thursday
+        text = f'{CALENDAR_EMOJI_CODE}  *Thursday 20:00*  {CALENDAR_EMOJI_CODE}\n\n'
+    else:                   # Friday - Monday
+        text = f'{CALENDAR_EMOJI_CODE}  *Monday 20:30*  {CALENDAR_EMOJI_CODE}\n\n'
+
+    waiting_flag = False
+    text += f'{STOPWATCH_EMOJI_CODE}{STOPWATCH_EMOJI_CODE}  Playing list  ' \
+            f'{STOPWATCH_EMOJI_CODE}{STOPWATCH_EMOJI_CODE}\n\n'
+    for player in playing:
+        index = playing.index(player)
+        if index >= LIST_MAX_SIZE and not waiting_flag:
+            text += f'\n{HOURGLASS_EMOJI_CODE}{HOURGLASS_EMOJI_CODE}  Waiting list  ' \
+                    f'{HOURGLASS_EMOJI_CODE}{HOURGLASS_EMOJI_CODE}\n\n'
+            waiting_flag = True
+        if not waiting_flag:
+            text += f'{index + 1}\. {player.user.full_name}'
+        else:
+            text += f'{index + 1 - LIST_MAX_SIZE}\. {player.user.full_name}'
+        if player.liable:
+            text += f'  {POINTING_EMOJI_CODE}'
+        if player.approved:
+            text += f'  {CHECK_MARK_EMOJI_CODE}'
+        if player.match_ball:
+            text += f'  {FOOTBALL_EMOJI_CODE}'
+        text += '\n'
+
+    user.send_message(text, parse_mode='MarkdownV2')
 
 
 def rules_command(update, context):
@@ -335,6 +378,7 @@ def main():
     dp.add_handler(CommandHandler("remove", remove_command))
     dp.add_handler(CommandHandler("approve", approve_command))
     dp.add_handler(CommandHandler("ball", ball_command))
+    dp.add_handler(CommandHandler("print", print_command))
     dp.add_handler(CommandHandler("rules", rules_command))
     dp.add_handler(CommandHandler("schedule", schedule_command))
 
