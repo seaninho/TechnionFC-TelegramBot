@@ -71,6 +71,7 @@ def help_command(update, context):
               f'\n*Available user commands* :\n' \
               f'/create \- create a new list\n' \
               f'/add \- add yourself to the list\n' \
+              f'/remove \- remove yourself from the list\n' \
               f'/approve \- approve you\'ll be attending the match\n' \
               f'/rules \- print match rules\n' \
               f'/schedule \- print the bot\'s schedule\n' \
@@ -138,6 +139,36 @@ def add_command(update, context):
             return user.send_message(f'Congratulations {user.full_name}, you\'re on the playing list!\n')
         else:
             return user.send_message(f'Playing list is full!\n\n{user.full_name}, you\'re on the waiting list')
+
+
+def remove_command(update, context):
+    """Remove player from the playing list"""
+    user = update.message.from_user
+    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_public_warning(user, 'remove'))
+
+    player = TechnionFCPlayer(user)
+    if player not in playing:
+        return user.send_message(f'{user.full_name}, you\'re not listed at all!')
+
+    index = playing.index(player)
+    if playing[index].liable:
+        return user.send_message(f'Hi {user.full_name}, you are liable for the match. Therefore, you cannot remove '
+                                 f'yourself from the list until you ensure another player assumes match liability!')
+
+    # prioritizing players on the waiting list who've already approved their attendance
+    first_in_line = next((player_waiting for player_waiting in playing
+                          if playing.index(player_waiting) >= LIST_MAX_SIZE and player_waiting.approved),
+                         playing[LIST_MAX_SIZE] if len(playing) > LIST_MAX_SIZE else None)
+
+    playing.remove(player)
+    user.send_message(f'{user.full_name}, the bot has removed you from the playing list!')
+
+    if index < LIST_MAX_SIZE and first_in_line is not None:
+        playing.remove(first_in_line)
+        playing.insert(LIST_MAX_SIZE - 1, first_in_line)        # first in line becomes last on the list
+        context.bot.send_message(first_in_line.user.id, f'Congratulations {first_in_line.user.full_name}, '
+                                                        f'you\'re on the playing list!')
 
 
 def approve_command(update, context):
@@ -274,6 +305,7 @@ def main():
     dp.add_handler(CommandHandler("help", help_command))
     dp.add_handler(CommandHandler("create", create_command))
     dp.add_handler(CommandHandler("add", add_command))
+    dp.add_handler(CommandHandler("remove", remove_command))
     dp.add_handler(CommandHandler("approve", approve_command))
     dp.add_handler(CommandHandler("rules", rules_command))
     dp.add_handler(CommandHandler("schedule", schedule_command))
