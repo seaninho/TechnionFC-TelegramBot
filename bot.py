@@ -12,6 +12,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Emojis
+CLIPBOARD_EMOJI_CODE = '\U0001F4CB'
 OK_SIGN_EMOJI_CODE = '\U0001F44C'
 SCROLL_EMOJI_CODE = '\U0001F4DC'
 
@@ -56,6 +57,7 @@ def help_command(update, context):
               f'So, when possible, please use bot commands in a private chat @ https://t\.me/FCTechnionBot\n' \
               f'\n*Available user commands* :\n' \
               f'/rules \- print match rules\n' \
+              f'/schedule \- print the bot\'s schedule\n' \
               f'\n*Available only to admins* :\n' \
               f'/start \- start the bot\n'
 
@@ -87,6 +89,29 @@ def rules_command(update, context):
               f'8\. The goalkeeper is replaced in each of the following cases \(whichever comes first\):\n' \
               f'    a\. He has conceded a goal\.\n' \
               f'    b\. He has been in goal the entire match \(from start to finish\)\.\n\n'
+
+    user.send_message(message, parse_mode='MarkdownV2')
+
+
+def schedule_command(update, context):
+    """Prints the bot's schedule"""
+    user = update.message.from_user
+    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_public_warning(user, 'schedule'))
+
+    message = f'\n{CLIPBOARD_EMOJI_CODE}{CLIPBOARD_EMOJI_CODE}  *Bot schedule*  ' \
+              f'{CLIPBOARD_EMOJI_CODE}{CLIPBOARD_EMOJI_CODE}\n\n' \
+              f'0\. Each matchday at 12:30, ' \
+              f'the bot will remind players who have yet to approve their attendance to do so\.\n\n' \
+              f'1\. Each matchday at 15:00, ' \
+              f'the bot will give a final reminder for players who have yet to approve their attendance to do so\.\n\n' \
+              f'2\. Each matchday at 16:00, 16:30, 17:00, 17:30, and 18:00, ' \
+              f'the bot will remove from the list players who have yet to approve their attendance\.\n' \
+              f'When promoting players from the waiting list, ' \
+              f'the bot will give preference to players who approved their attendance\.\n\n' \
+              f'3\. Each matchday at 23:59:59, the bot will clean up the list\.\n\n' \
+              f'4\. Each day at 05:00:00, the bot restarts itself\.\n' \
+              f'Please refrain from performing any actions during the 10 minutes before\.\n\n'
 
     user.send_message(message, parse_mode='MarkdownV2')
 
@@ -141,6 +166,7 @@ def main():
     dp.add_handler(CommandHandler("start", start_command, pass_job_queue=True))
     dp.add_handler(CommandHandler("help", help_command))
     dp.add_handler(CommandHandler("rules", rules_command))
+    dp.add_handler(CommandHandler("schedule", schedule_command))
 
     # log all errors
     dp.add_error_handler(error)
