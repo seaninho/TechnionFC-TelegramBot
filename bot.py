@@ -353,6 +353,37 @@ def final_reminder(context):
     if text:
         context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode='MarkdownV2')
 
+
+def remove_non_attenders(context):
+    """Remove players on the playing list who didn't approve their attendance in time
+
+    Such players will be replaced with players on the waiting list (preferably, ones who've approved) if there are any.
+    Move the non-attenders to the back of the waiting list"""
+    if all(player.approved for player in playing):
+        return
+
+    yet_to_approve = [player for player in playing if playing.index(player) < LIST_MAX_SIZE and not player.approved]
+    for player in yet_to_approve:
+        if player.liable:
+            continue
+        text = f'{player.user.mention_markdown_v2()}, ' \
+               f'the bot removed you from the playing list for failing to approve your attendance in time\.\n\n'
+
+        # prioritizing players on the waiting list who've already approved their attendance
+        first_in_line = next((player_waiting for player_waiting in playing
+                              if playing.index(player_waiting) >= LIST_MAX_SIZE and player_waiting.approved),
+                             playing[LIST_MAX_SIZE] if len(playing) > LIST_MAX_SIZE else None)
+
+        playing.remove(player)
+        if first_in_line is not None:       # waiting list is not empty
+            text += f'Congratulations {first_in_line.user.mention_markdown_v2()}, you\'ve made the playing list\!'
+            if not first_in_line.approved:
+                text += f'\nPlease approve you\'ll be attending the match\!'
+            playing.remove(first_in_line)
+            playing.insert(LIST_MAX_SIZE - 1, first_in_line)
+
+        context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode='MarkdownV2')
+
 # endregion
 
 # region HELPER FUNCTIONS
@@ -461,6 +492,23 @@ def main():
     # run final_reminder every matchday @ 15:00
     dp.job_queue.run_daily(final_reminder,
                            time(hour=15, minute=0, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS)
+
+    # run remove_non_attenders every matchday @ 16:00, 16:30, 17:00, 17:30, 18:00
+    dp.job_queue.run_daily(remove_non_attenders,
+                           time(hour=16, minute=0, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS)
+    dp.job_queue.run_daily(remove_non_attenders,
+                           time(hour=16, minute=30, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS)
+    dp.job_queue.run_daily(remove_non_attenders,
+                           time(hour=17, minute=0, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS)
+    dp.job_queue.run_daily(remove_non_attenders,
+                           time(hour=17, minute=30, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS)
+    dp.job_queue.run_daily(remove_non_attenders,
+                           time(hour=18, minute=0, tzinfo=timezone('Asia/Jerusalem')),
                            days=MATCHDAYS)
 
     # Start the Bot
