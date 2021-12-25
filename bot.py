@@ -1,3 +1,4 @@
+import re
 import logging
 
 from telegram.ext import Updater, CommandHandler
@@ -113,6 +114,18 @@ def schedule_command(update, context):
               f'Please refrain from performing any actions during the 10 minutes before\.\n\n'
 
     user.send_message(message, parse_mode='MarkdownV2')
+
+
+def user_full_name_is_valid(user):
+    """Check if user's full name is valid"""
+    if len(user.first_name) <= 1 or user.last_name is None or len(user.last_name) <= 1:
+        return False
+
+    regex = re.compile('[.,@_\-!#$%^&*()<>?/\|}{~:0123456789]')
+    if regex.search(user.full_name) is not None:
+        return False
+
+    return True
 
 
 def get_command_in_public_warning(user, command):
