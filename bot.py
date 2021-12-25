@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 # Emojis
 OK_SIGN_EMOJI_CODE = '\U0001F44C'
+SCROLL_EMOJI_CODE = '\U0001F4DC'
 
 
 def start_command(update, context):
@@ -54,8 +55,38 @@ def help_command(update, context):
               f'10\. Telegram Bots cannot initiate a conversation with a user \(there is no way around this\)\.\n' \
               f'So, when possible, please use bot commands in a private chat @ https://t\.me/FCTechnionBot\n' \
               f'\n*Available user commands* :\n' \
+              f'/rules \- print match rules\n' \
               f'\n*Available only to admins* :\n' \
               f'/start \- start the bot\n'
+
+    user.send_message(message, parse_mode='MarkdownV2')
+
+
+def rules_command(update, context):
+    """Prints the match rules"""
+    user = update.message.from_user
+    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_public_warning(user, 'rules'))
+
+    message = f'\n{SCROLL_EMOJI_CODE}{SCROLL_EMOJI_CODE}  *Match Rules*  {SCROLL_EMOJI_CODE}{SCROLL_EMOJI_CODE}\n\n' \
+              f'0\. There are three \(3\) teams\. Each team consists of five \(5\) players\.\n\n' \
+              f'1\. A match lasts eight \(8\) minutes or up until one team scores two \(2\) goals\.\n\n' \
+              f'2\. In case of a tie, there will be two \(2\) additional minutes of stoppage time\.\n\n' \
+              f'3\. In case the standard time of play passes and the game is still in play, ' \
+              f'the match will have one last attack\.\n\n' \
+              f'4\. The "last attack" ends when \(whichever comes first\):\n' \
+              f'    a\. A team gets a goal kick\.\n' \
+              f'    b\. The ball has been out for a throw\-out for the third time\.\n' \
+              f'    \* corner\-kicks are considered a part of the attack\.\n\n' \
+              f'5\. In case the stoppage time ends in a tie, there are two options:\n' \
+              f'    a\. The veteran team \(if there is one\) leaves\.\n' \
+              f'    b\. Each team gets a penalty kick\.\n' \
+              f'        The first team that scores while the other misses, stays\.\n\n' \
+              f'6\. The goalkeeper\'s movement is limited to his team\'s half\.\n\n' \
+              f'7\. The goalkeeper can score a goal\.\n\n' \
+              f'8\. The goalkeeper is replaced in each of the following cases \(whichever comes first\):\n' \
+              f'    a\. He has conceded a goal\.\n' \
+              f'    b\. He has been in goal the entire match \(from start to finish\)\.\n\n'
 
     user.send_message(message, parse_mode='MarkdownV2')
 
@@ -109,6 +140,7 @@ def main():
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start_command, pass_job_queue=True))
     dp.add_handler(CommandHandler("help", help_command))
+    dp.add_handler(CommandHandler("rules", rules_command))
 
     # log all errors
     dp.add_error_handler(error)
