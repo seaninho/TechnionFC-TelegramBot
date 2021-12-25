@@ -16,6 +16,9 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
+# Constants
+LIST_MAX_SIZE = 15            # there are 3 teams, each team has 5 players (set by pitch size)
+
 # Emojis
 CLIPBOARD_EMOJI_CODE = '\U0001F4CB'
 OK_SIGN_EMOJI_CODE = '\U0001F44C'
@@ -66,6 +69,7 @@ def help_command(update, context):
               f'So, when possible, please use bot commands in a private chat @ https://t\.me/FCTechnionBot\n' \
               f'\n*Available user commands* :\n' \
               f'/create \- create a new list\n' \
+              f'/add \- add yourself to the list\n' \
               f'/rules \- print match rules\n' \
               f'/schedule \- print the bot\'s schedule\n' \
               f'\n*Available only to admins* :\n' \
@@ -102,6 +106,36 @@ def create_command(update, context):
     user.send_message(f'Congratulations {user.full_name}, you\'ve created a new playing list!\n\n'
                       f'Please note, you\'re liable for the match!\n'
                       f'For more information, please see the /help message')
+
+
+def add_command(update, context):
+    """Add player to the playing list"""
+    user = update.message.from_user
+    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_public_warning(user, 'add'))
+
+    if not user_full_name_is_valid(user):
+        return user.send_message(f'Hi {user.full_name}, your telegram name is invalid!\n\n'
+                                 f'Please use /help to read on our naming rules, change it, and try again')
+
+    player = TechnionFCPlayer(user)
+    if playing.count(player) > 0:
+        index = playing.index(player)
+        if index < LIST_MAX_SIZE:
+            return user.send_message(f'{user.full_name}, you\'re already on the playing list!')
+        else:
+            return user.send_message(f'{user.full_name}, you\'re already on the waiting list!')
+    else:
+        if len(playing) == 0:
+            return user.send_message(f'{user.full_name}, please use the /create command '
+                                     f'to create a list first!')
+
+        playing.append(player)
+        index = playing.index(player)
+        if index < LIST_MAX_SIZE:
+            return user.send_message(f'Congratulations {user.full_name}, you\'re on the playing list!\n')
+        else:
+            return user.send_message(f'Playing list is full!\n\n{user.full_name}, you\'re on the waiting list')
 
 
 def rules_command(update, context):
@@ -218,6 +252,7 @@ def main():
     dp.add_handler(CommandHandler("start", start_command, pass_job_queue=True))
     dp.add_handler(CommandHandler("help", help_command))
     dp.add_handler(CommandHandler("create", create_command))
+    dp.add_handler(CommandHandler("add", add_command))
     dp.add_handler(CommandHandler("rules", rules_command))
     dp.add_handler(CommandHandler("schedule", schedule_command))
 
