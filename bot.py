@@ -21,6 +21,7 @@ MATCHDAYS = (0, 3)                  # matchdays are Monday and Thursday
 LIST_MAX_SIZE = 15                  # there are 3 teams, each team has 5 players (set by pitch size)
 
 # Emojis
+ALARM_EMOJI_CODE = '\U000023F0'
 CALENDAR_EMOJI_CODE = '\U0001F4C5'
 CHECK_MARK_EMOJI_CODE = '\U00002705'
 CLIPBOARD_EMOJI_CODE = '\U0001F4CB'
@@ -38,7 +39,7 @@ playing = deque()
 
 
 def start_command(update, context):
-    """Send bot welcome message"""
+    """Send bot welcome message and add jobs to the context's JobQueue"""
     user = update.message.from_user
     message = 'TechnionFC Bot has started operating\.\.\.\n\nPlease use the /help command to list your options'
 
@@ -299,6 +300,25 @@ def schedule_command(update, context):
 
 # endregion
 
+# region TELEGRAM JOBS
+
+
+def kindly_reminder(context):
+    """Remind players to approve their attendance"""
+    if all(player.approved for player in playing):
+        return
+
+    text = f'{ALARM_EMOJI_CODE}  It\'s 12:30 on matchday  {ALARM_EMOJI_CODE}\n\n' \
+           f'This is a kindly reminder for\n\n'
+    yet_to_approve = [player for player in playing if not player.approved]
+    for player in yet_to_approve:
+        text += f'{player.user.mention_markdown_v2()}\n'
+    text += '\nPlease approve you\'ll be attending the match\!'
+
+    context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode='MarkdownV2')
+
+# endregion
+
 # region HELPER FUNCTIONS
 
 
@@ -396,6 +416,11 @@ def main():
 
     # log all errors
     dp.add_error_handler(error)
+
+    # run kindly_reminder every matchday @ 12:30
+    dp.job_queue.run_daily(kindly_reminder,
+                           time(hour=12, minute=30, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS)
 
     # Start the Bot
     # updater.start_polling()
