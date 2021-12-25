@@ -33,6 +33,8 @@ STOPWATCH_EMOJI_CODE = '\U000023F1'
 # Playing list. This data structure functions as a waiting list as well
 playing = deque()
 
+# region ADMIN COMMANDS
+
 
 def start_command(update, context):
     """Send bot welcome message"""
@@ -40,6 +42,10 @@ def start_command(update, context):
     message = 'TechnionFC Bot has started operating\.\.\.\n\nPlease use the /help command to list your options'
 
     user.send_message(message, parse_mode='MarkdownV2')
+
+# endregion
+
+# region USER COMMANDS
 
 
 def help_command(update, context):
@@ -290,6 +296,10 @@ def schedule_command(update, context):
 
     user.send_message(message, parse_mode='MarkdownV2')
 
+# endregion
+
+# region HELPER FUNCTIONS
+
 
 def user_full_name_is_valid(user):
     """Check if user's full name is valid"""
@@ -333,6 +343,8 @@ def remove_player_from_list(context, index, player):
 def error(update, context):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, context.error)
+
+# endregion
 
 
 def main():
