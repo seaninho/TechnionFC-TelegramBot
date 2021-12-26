@@ -4,7 +4,7 @@ from datetime import datetime, time
 from pytz import timezone
 from collections import deque
 
-from telegram import TelegramError
+from telegram import User, TelegramError
 from telegram.ext import Updater, CommandHandler
 
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_GROUP_INVITE_LINK, PORT
@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 # Constants
 MATCHDAYS = (0, 3)                  # matchdays are Monday and Thursday
 LIST_MAX_SIZE = 15                  # there are 3 teams, each team has 5 players (set by pitch size)
+ACCEPT_TIMEFRAME = 86400            # accept timeframe is set to 24 hours
+FAKE_USER_ID = -1
 
 # Emojis
 ALARM_EMOJI_CODE = '\U000023F0'
@@ -49,6 +51,54 @@ def start_command(update, context):
     message = 'TechnionFC Bot has started operating\.\.\.\n\nPlease use the /help command to list your options'
 
     user.send_message(message, parse_mode='MarkdownV2')
+
+
+def addUser_command(update, context):
+    """Add player to the playing list by tagging him
+
+    When provided with an index, the function places the tagged user in a specific place on the list"""
+    user = update.message.from_user
+    if str(update.message.chat.id) != TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_private_warning(user, 'addUser'))
+    if not is_group_admin(update, context, user):
+        return update.message.reply_text(f'Hi {user.full_name}, you\'re not an admin, '
+                                         f'and therefore cannot use the /addUser command!\n'
+                                         f'Please use the /add command if you wish to be added to the list.')
+
+    # message MUST have exactly two entities to be valid: BOT_COMMAND and TEXT_MENTION or a MENTION
+    if len(update.message.entities) != 2:
+        return update.message.reply_text(f'Hi {user.full_name}, please make sure to tag the user you wish to add!')
+
+    tagged_user = update.message.entities[1].user   # second message entity is a TEXT_MENTION or a MENTION
+
+    # in case admin wants to add a player in a specific place on the list, two arguments are provided.
+    index = None
+    if len(context.args) == 2:
+        index_str = context.args[1]                 # second argument agreed to be said place on the list
+        try:
+            index = int(index_str) - 1              # decreased index to accommodate "natural" indexing
+        except ValueError:
+            return update.message.reply_text(f'Hi {user.full_name}, please make sure to tag the user you wish '
+                                             f'to add first, and the list index second!')
+
+    if tagged_user is None:  # if second message entity is a MENTION
+        return addUser_by_username(user, index, update, context)
+
+    if not user_full_name_is_valid(tagged_user):
+        return update.message.reply_text(f'Hi {user.full_name}, you\'ve tried adding a user with an invalid '
+                                         f'telegram name!\n\nPlease advise him to change it and try again...')
+
+    tagged_player = TechnionFCPlayer(tagged_user)
+    if tagged_player in playing:
+        return update.message.reply_text(f'Hi {user.full_name}, '
+                                         f'user {tagged_user.full_name} is already on the playing list!')
+
+    if index is not None:
+        playing.insert(index, tagged_player)
+    else:
+        playing.append(tagged_player)
+    update.message.reply_text(f'Congratulations {tagged_user.full_name}, '
+                              f'you were added to the playing list by {user.full_name}!')
 
 
 def clearAll_command(update, context):
@@ -110,6 +160,7 @@ def help_command(update, context):
               f'/schedule \- print the bot\'s schedule\n' \
               f'\n*Available only to admins* :\n' \
               f'/start \- start the bot\n' \
+              f'/addUser \- add the tagged user to the list\n' \
               f'/clearAll \- clear the list\n'
 
     user.send_message(message, parse_mode='MarkdownV2')
@@ -353,7 +404,10 @@ def kindly_reminder(context):
            f'This is a kindly reminder for\n\n'
     yet_to_approve = [player for player in playing if not player.approved]
     for player in yet_to_approve:
-        text += f'{player.user.mention_markdown_v2()}\n'
+        if player.user.id == FAKE_USER_ID:
+            text += f'\@{player.user.username}\n'
+        else:
+            text += f'{player.user.mention_markdown_v2()}\n'
     text += '\nPlease approve you\'ll be attending the match\!'
 
     context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode='MarkdownV2')
@@ -371,7 +425,10 @@ def final_reminder(context):
         text += f'{ALARM_EMOJI_CODE}  It\'s 15:00 on matchday  {ALARM_EMOJI_CODE}\n\n' \
                f'This is a final reminder for\n\n'
         for player in playing_yet_to_approve:
-            text += f'{player.user.mention_markdown_v2()}\n'
+            if player.user.id == FAKE_USER_ID:
+                text += f'\@{player.user.username}\n'
+            else:
+                text += f'{player.user.mention_markdown_v2()}\n'
         text += f'\nPlease approve you\'ll be attending the match\!\n' \
                 f'{NO_ENTRY_EMOJI_CODE}  *If you will not approve your attendance in the next hour, ' \
                 f'you\'ll lose your place on the playing list\!*  {NO_ENTRY_EMOJI_CODE}'
@@ -386,7 +443,10 @@ def final_reminder(context):
                 text += f'{ALARM_EMOJI_CODE}  It\'s 16:00 on matchday  {ALARM_EMOJI_CODE}\n\n' \
                         f'This is a kindly reminder for\n\n'
             for player in waiting_yet_to_approve:
-                text += f'{player.user.mention_markdown_v2()}\n'
+                if player.user.id == FAKE_USER_ID:
+                    text += f'\@{player.user.username}\n'
+                else:
+                    text += f'{player.user.mention_markdown_v2()}\n'
             text += f'\n*It is advisable to approve your attendance\!*\nWhen promoting players from ' \
                     f'the waiting list, the bot will prioritize players who\'ve approved their attendance\!'
 
@@ -406,8 +466,11 @@ def remove_non_attenders(context):
     for player in yet_to_approve:
         if player.liable:
             continue
-        text = f'{player.user.mention_markdown_v2()}, ' \
-               f'the bot removed you from the playing list for failing to approve your attendance in time\.\n\n'
+        if player.user.id == FAKE_USER_ID:
+            text = f'\@{player.user.username}, '
+        else:
+            text = f'{player.user.mention_markdown_v2()}, '
+        text += f'the bot removed you from the playing list for failing to approve your attendance in time\.\n\n'
 
         # prioritizing players on the waiting list who've already approved their attendance
         first_in_line = next((player_waiting for player_waiting in playing
@@ -416,7 +479,10 @@ def remove_non_attenders(context):
 
         playing.remove(player)
         if first_in_line is not None:       # waiting list is not empty
-            text += f'Congratulations {first_in_line.user.mention_markdown_v2()}, you\'ve made the playing list\!'
+            if first_in_line.user.id == FAKE_USER_ID:
+                text += f'Congratulations \@{first_in_line.user.username}, you\'ve made the playing list\!'
+            else:
+                text += f'Congratulations {first_in_line.user.mention_markdown_v2()}, you\'ve made the playing list\!'
             if not first_in_line.approved:
                 text += f'\nPlease approve you\'ll be attending the match\!'
             playing.remove(first_in_line)
@@ -432,6 +498,24 @@ def list_cleanup(context):
     invited.clear()
     text += 'List was cleared by the bot\!'
     context.bot.send_message(chat_id=context.job.context, text=text, parse_mode='MarkdownV2')
+
+
+def check_accepted(context):
+    """Check if user has accepted the administrator's invitation"""
+    username = context.job.context
+    if username not in invited:
+        return
+
+    fake_user = User(id=FAKE_USER_ID, first_name='Reserved for', is_bot=False, last_name=username, username=username)
+    fake_player = TechnionFCPlayer(fake_user)
+    index = playing.index(fake_player)
+
+    text = f'Hi @{username}, timeframe for accepting the admin\'s invitation has passed!\n' \
+           f'Please contact an admin to get re-invited.'
+    context.bot.send_message(TELEGRAM_CHAT_ID, text)
+
+    invited.remove(username)
+    remove_player_from_list(context, index, fake_player)
 
 # endregion
 
@@ -514,8 +598,38 @@ def remove_player_from_list(context, index, player):
     if index < LIST_MAX_SIZE and first_in_line is not None:
         playing.remove(first_in_line)
         playing.insert(LIST_MAX_SIZE - 1, first_in_line)  # first in line becomes last on the list
-        context.bot.send_message(first_in_line.user.id, f'Congratulations {first_in_line.user.full_name}, '
-                                                        f'you\'re on the playing list!')
+        if first_in_line.user.id != FAKE_USER_ID:
+            context.bot.send_message(first_in_line.user.id, f'Congratulations {first_in_line.user.full_name}, '
+                                                            f'you\'re on the playing list!')
+        else:
+            context.bot.send_message(TELEGRAM_CHAT_ID, f'Congratulations @{first_in_line.user.username}, '
+                                                       f'you\'re onr the playing list!')
+
+
+def addUser_by_username(user, index, update, context):
+    """Add player to the playing list using tagged username"""
+    tagged_username = context.args[0]
+    username = tagged_username.replace('@', '')
+
+    if username in invited:
+        return update.message.reply_text(f'Hi {user.full_name},\n'
+                                         f'Bot is currently waiting for {username} to accept your invitation!')
+
+    fake_user = User(id=FAKE_USER_ID, first_name='Reserved for', is_bot=False, last_name=username, username=username)
+    fake_player = TechnionFCPlayer(fake_user)
+    text = f'Hi @{username},\n{user.full_name} is trying to add you to the playing list\n\n'
+
+    invited.append(username)
+    if index is not None:
+        playing.insert(index, fake_player)
+    else:
+        playing.append(fake_player)
+
+    text += f'Your spot is reserved for the next 24 hours.\n' \
+            f'Please respond to this message with /accept'
+
+    context.job_queue.run_once(check_accepted, ACCEPT_TIMEFRAME, context=username)
+    return update.message.reply_text(text)
 
 
 def error(update, context):
@@ -545,6 +659,7 @@ def main():
     dp.add_handler(CommandHandler("print", print_command))
     dp.add_handler(CommandHandler("rules", rules_command))
     dp.add_handler(CommandHandler("schedule", schedule_command))
+    dp.add_handler(CommandHandler("addUser", addUser_command))
     dp.add_handler(CommandHandler("clearAll", clearAll_command))
 
     # log all errors
