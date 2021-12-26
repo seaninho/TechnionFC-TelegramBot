@@ -144,6 +144,62 @@ def removeUser_command(update, context):
     remove_player_from_list(context, index, player)
 
 
+def createList_command(update, context):
+    """Build list with tagged users"""
+    user = update.message.from_user
+    if str(update.message.chat.id) != TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_private_warning(user, 'createList'))
+    if not is_group_admin(update, context, user):
+        return update.message.reply_text(f'Hi {user.full_name}, you\'re not an admin, '
+                                         f'and therefore cannot use the /createList command!')
+
+    if len(context.args) != len(set(context.args)):         # not all entities are unique
+        return update.message.reply_text(f'Hi {user.full_name}, please make sure not to tag the same user twice!')
+
+    invalids = []
+    for entity in update.message.entities:                  # MENTION or TEXT_MENTION are types of MessageEntity
+        if entity.type not in ('mention', 'text_mention'):
+            continue
+
+        tagged_user = entity.user
+        if tagged_user is None:
+            continue
+        if not user_full_name_is_valid(tagged_user):
+            invalids.append(tagged_user)
+
+    if invalids:
+        text = f'Hi {user.full_name}, the following users have invalid telegram name:\n\n'
+        for invalid in invalids:
+            text += f'{invalid.full_name}\n'
+        text += f'\nPlease advise them to change it and then try again!'
+        return update.message.reply_text(text)
+
+    playing.clear()                                         # clearing both queues prior to population
+    invited.clear()
+    for entity in update.message.entities[1:]:              # first MessageEntity is of type 'bot_command'
+        tagged_user = entity.user
+        if tagged_user is None:
+            index = update.message.entities.index(entity)
+            tagged_username = context.args[index - 1]       # argument index = entity index - 1
+            username = tagged_username.replace('@', '')
+            fake_user = User(FAKE_USER_ID, 'Reserved for', is_bot=False, last_name=username, username=username)
+            fake_player = TechnionFCPlayer(fake_user)
+            invited.append(username)
+            playing.append(fake_player)
+
+            text = f'Hi @{username},\n{user.full_name} is trying to add you to the playing list\n\n' \
+                   f'Your spot is reserved for the next 24 hours.\n' \
+                   f'Please respond to this message with /accept'
+
+            context.job_queue.run_once(check_accepted, ACCEPT_TIMEFRAME, context=(update.message.chat_id, username))
+            update.message.reply_text(text)
+        else:
+            tagged_player = TechnionFCPlayer(tagged_user)
+            playing.append(tagged_player)
+            text = f'Congratulations {tagged_user.full_name}, you were added to the playing list by {user.full_name}!'
+            update.message.reply_text(text)
+
+
 def clearAll_command(update, context):
     """Clear both playing and waiting lists"""
     user = update.message.from_user
@@ -205,6 +261,7 @@ def help_command(update, context):
               f'/start \- start the bot\n' \
               f'/addUser \- add the tagged user to the list\n' \
               f'/removeUser \- remove the tagged user from the list\n' \
+              f'/createList \- create a new list with tagged users\n' \
               f'/clearAll \- clear the list\n'
 
     user.send_message(message, parse_mode='MarkdownV2')
@@ -705,6 +762,7 @@ def main():
     dp.add_handler(CommandHandler("schedule", schedule_command))
     dp.add_handler(CommandHandler("addUser", addUser_command))
     dp.add_handler(CommandHandler("removeUser", removeUser_command))
+    dp.add_handler(CommandHandler("createList", createList_command))
     dp.add_handler(CommandHandler("clearAll", clearAll_command))
 
     # log all errors
