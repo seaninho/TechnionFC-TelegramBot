@@ -8,5 +8,7 @@ class TechnionFCPlayer:
 
     def __eq__(self, other):
         if isinstance(other, TechnionFCPlayer):
+            if self.user.id == -1 or other.user.id == -1:      # fake user
+                return self.user.username == other.user.username
             return self.user.id == other.user.id
         return False
