@@ -9,6 +9,7 @@ from telegram import User, TelegramError
 from telegram.ext import Updater, CommandHandler
 
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_GROUP_INVITE_LINK, PORT
+from postgres import conn
 from TechnionFCPlayer import TechnionFCPlayer
 
 # Enable logging
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 # Constants
 MATCHDAYS = (0, 3)                  # matchdays are Monday and Thursday
 LIST_MAX_SIZE = 15                  # there are 3 teams, each team has 5 players (set by pitch size)
+BACKUP_INTERVAL = 600               # backup interval set to 10 minutes
 ACCEPT_TIMEFRAME = 86400            # accept timeframe is set to 24 hours
 FAKE_USER_ID = -1
 
@@ -542,6 +544,32 @@ def schedule_command(update, context):
 # region TELEGRAM JOBS
 
 
+def backup_to_database(context):
+    """Backup list to database"""
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM PLAYING")          # delete current table
+        for player in playing:
+            user_id = player.user.id
+            user_first_name = player.user.first_name
+            user_last_name = player.user.last_name
+            user_username = player.user.username if player.user.username is not None else ''
+            player_liable = player.liable
+            player_approved = player.approved
+            player_match_ball = player.match_ball
+            cur.execute("INSERT INTO PLAYING (user_id, user_first_name, user_last_name, "
+                        "user_username, player_liable, player_approved, player_match_ball)"
+                        "VALUES(%s, %s, %s, %s, %s, %s, %s)",
+                        (user_id, user_first_name, user_last_name, user_username,
+                         player_liable, player_approved, player_match_ball))
+            conn.commit()
+
+        cur.execute("DELETE FROM INVITED")
+        for username in invited:
+            # cur.execute inserted value must be a tuple
+            cur.execute("INSERT INTO INVITED (username) VALUES(%s)", (username,))
+            conn.commit()
+
+
 def kindly_reminder(context):
     """Remind players to approve their attendance"""
     if all(player.approved for player in playing):
@@ -814,6 +842,9 @@ def main():
 
     # log all errors
     dp.add_error_handler(error)
+
+    # run backup_to_database every hour
+    dp.job_queue.run_repeating(backup_to_database, BACKUP_INTERVAL)
 
     # run kindly_reminder every matchday @ 12:30
     dp.job_queue.run_daily(kindly_reminder,
