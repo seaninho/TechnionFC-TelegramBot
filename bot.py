@@ -668,9 +668,15 @@ def remove_non_attenders(context):
 
 def list_cleanup(context):
     """Clear the playing list"""
-    text = f'{CLOCK_EMOJI_CODE}  It\'s time for the bot\'s scheduled lists cleanup\.\.\.  {CLOCK_EMOJI_CODE}\n\n'
+    if not playing:     # playing list is empty. Therefore, no need to clear it.
+        return
+    text = f'{CLOCK_EMOJI_CODE}  It\'s time for the bot\'s scheduled cleanup\.\.\.  {CLOCK_EMOJI_CODE}\n\n'
     playing.clear()
     invited.clear()
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM PLAYING")          # delete current tables
+        cur.execute("DELETE FROM INVITED")
+    conn.commit()
     text += 'List was cleared by the bot\!'
     context.bot.send_message(chat_id=context.job.context, text=text, parse_mode='MarkdownV2')
 
@@ -896,7 +902,7 @@ def main():
                            time(hour=18, minute=0, tzinfo=timezone('Asia/Jerusalem')),
                            days=MATCHDAYS)
 
-    # run clear_list every Monday, Thursday @ 23:59:59
+    # run clear_list every matchday @ 23:59:59
     dp.job_queue.run_daily(list_cleanup,
                            time(hour=23, minute=59, second=59, tzinfo=timezone('Asia/Jerusalem')),
                            days=MATCHDAYS,
