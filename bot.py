@@ -25,6 +25,7 @@ ALARM_EMOJI_CODE = '\U000023F0'
 CALENDAR_EMOJI_CODE = '\U0001F4C5'
 CHECK_MARK_EMOJI_CODE = '\U00002705'
 CLIPBOARD_EMOJI_CODE = '\U0001F4CB'
+CLOCK_EMOJI_CODE = '\U0001F55A'
 HOURGLASS_EMOJI_CODE = '\U000023F3'
 FOOTBALL_EMOJI_CODE = '\U000026BD'
 NO_ENTRY_EMOJI_CODE = '\U000026D4'
@@ -423,6 +424,15 @@ def remove_non_attenders(context):
 
         context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode='MarkdownV2')
 
+
+def list_cleanup(context):
+    """Clear the playing list"""
+    text = f'{CLOCK_EMOJI_CODE}  It\'s time for the bot\'s scheduled lists cleanup\.\.\.  {CLOCK_EMOJI_CODE}\n\n'
+    playing.clear()
+    invited.clear()
+    text += 'List was cleared by the bot\!'
+    context.bot.send_message(chat_id=context.job.context, text=text, parse_mode='MarkdownV2')
+
 # endregion
 
 # region HELPER FUNCTIONS
@@ -566,6 +576,12 @@ def main():
     dp.job_queue.run_daily(remove_non_attenders,
                            time(hour=18, minute=0, tzinfo=timezone('Asia/Jerusalem')),
                            days=MATCHDAYS)
+
+    # run clear_list every Monday, Thursday @ 23:59:59
+    dp.job_queue.run_daily(list_cleanup,
+                           time(hour=23, minute=59, second=59, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS,
+                           context=TELEGRAM_CHAT_ID)
 
     # Start the Bot
     # updater.start_polling()
