@@ -101,6 +101,49 @@ def addUser_command(update, context):
                               f'you were added to the playing list by {user.full_name}!')
 
 
+def removeUser_command(update, context):
+    """Remove tagged user from the playing list"""
+    user = update.message.from_user
+    if str(update.message.chat.id) != TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_private_warning(user, 'removeUser'))
+    if not is_group_admin(update, context, user):
+        return update.message.reply_text(f'Hi {user.full_name}, you\'re not an admin, '
+                                         f'and therefore cannot use the /removeUser command!\n'
+                                         f'Please use the /remove command if you wish to be removed from the list.')
+
+    # message MUST have exactly two entities to be valid: BOT_COMMAND and TEXT_MENTION or a MENTION
+    if len(update.message.entities) != 2:
+        return update.message.reply_text(f'Hi {user.full_name}, please make sure to tag the user you wish to remove!')
+
+    tagged_user = update.message.entities[1].user   # second message entity is a TEXT_MENTION or a MENTION
+    if tagged_user is None:                         # if message entity is a MENTION
+        tagged_username = context.args[0]
+        username = tagged_username.replace('@', '')
+        fake_user = User(FAKE_USER_ID, first_name='', is_bot=False, username=username)
+        player = TechnionFCPlayer(fake_user)
+        player_name = username
+    else:                                           # message entity is a TEXT_MENTION
+        player = TechnionFCPlayer(tagged_user)
+        player_name = tagged_user.full_name
+
+    if player not in playing:
+        return update.message.reply_text(f'Hi {user.full_name}, the player you wish to remove, '
+                                         f'{player_name}, is not listed...\n\n'
+                                         f'Please make sure to tag the correct user you wish to remove!')
+    index = playing.index(player)
+    if playing[index].liable:
+        return update.message.reply_text(f'Hi {user.full_name}, {player_name} is liable for the match. Therefore, '
+                                         f'you cannot remove him from the list until he ensures another player assumes '
+                                         f'match liability!')
+
+    # if the player hasn't accepted yet, he needs to be removed from invited too
+    if player_name in invited:
+        invited.remove(player_name)
+
+    update.message.reply_text(f'{player_name} was removed from the playing list by {user.full_name}!')
+    remove_player_from_list(context, index, player)
+
+
 def clearAll_command(update, context):
     """Clear both playing and waiting lists"""
     user = update.message.from_user
@@ -161,6 +204,7 @@ def help_command(update, context):
               f'\n*Available only to admins* :\n' \
               f'/start \- start the bot\n' \
               f'/addUser \- add the tagged user to the list\n' \
+              f'/removeUser \- remove the tagged user from the list\n' \
               f'/clearAll \- clear the list\n'
 
     user.send_message(message, parse_mode='MarkdownV2')
@@ -660,6 +704,7 @@ def main():
     dp.add_handler(CommandHandler("rules", rules_command))
     dp.add_handler(CommandHandler("schedule", schedule_command))
     dp.add_handler(CommandHandler("addUser", addUser_command))
+    dp.add_handler(CommandHandler("removeUser", removeUser_command))
     dp.add_handler(CommandHandler("clearAll", clearAll_command))
 
     # log all errors
