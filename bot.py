@@ -48,6 +48,18 @@ def start_command(update, context):
 
     user.send_message(message, parse_mode='MarkdownV2')
 
+
+def clearAll_command(update, context):
+    """Clear both playing and waiting lists"""
+    user = update.message.from_user
+    if str(update.message.chat.id) != TELEGRAM_CHAT_ID:
+        return update.message.reply_text(f'Hi {user.full_name}, the /clearAll command is to be used in a public chat!')
+    if is_admin(user, update):
+        playing.clear()
+        invited.clear()
+        return update.message.reply_text('Both lists were cleared by an admin')
+    update.message.reply_text(f'Hi {user.full_name}!\n\nPlease note, only admins are allowed to clear the lists!')
+
 # endregion
 
 # region USER COMMANDS
@@ -95,7 +107,8 @@ def help_command(update, context):
               f'/rules \- print match rules\n' \
               f'/schedule \- print the bot\'s schedule\n' \
               f'\n*Available only to admins* :\n' \
-              f'/start \- start the bot\n'
+              f'/start \- start the bot\n' \
+              f'/clearAll \- clear the list\n'
 
     user.send_message(message, parse_mode='MarkdownV2')
 
@@ -489,6 +502,7 @@ def main():
     dp.add_handler(CommandHandler("print", print_command))
     dp.add_handler(CommandHandler("rules", rules_command))
     dp.add_handler(CommandHandler("schedule", schedule_command))
+    dp.add_handler(CommandHandler("clearAll", clearAll_command))
 
     # log all errors
     dp.add_error_handler(error)
