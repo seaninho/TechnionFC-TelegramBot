@@ -811,6 +811,26 @@ def error(update, context):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, context.error)
 
+
+def restore_from_database():
+    """Restore playing list from database back up"""
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM PLAYING")
+        players_data = cur.fetchall()
+        cur.execute("SELECT * FROM INVITED")
+        invited_data = cur.fetchall()
+
+    for player_data in players_data:
+        (user_id, user_first_name, user_last_name, user_username,
+         player_liable, player_approved, player_match_ball) = player_data
+        user = User(user_id, first_name=user_first_name, is_bot=False, last_name=user_last_name, username=user_username)
+        player = TechnionFCPlayer(user, player_liable, player_approved, player_match_ball)
+        playing.append(player)
+
+    for invited_tuple in invited_data:
+        (invited_player,) = invited_tuple
+        invited.append(invited_player)
+
 # endregion
 
 
@@ -842,6 +862,9 @@ def main():
 
     # log all errors
     dp.add_error_handler(error)
+
+    # restore data from back up
+    restore_from_database()
 
     # run backup_to_database every hour
     dp.job_queue.run_repeating(backup_to_database, BACKUP_INTERVAL)
