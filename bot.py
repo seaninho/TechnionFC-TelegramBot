@@ -1,5 +1,6 @@
 import re
 import logging
+import random
 from datetime import datetime, time
 from pytz import timezone
 from collections import deque
@@ -26,6 +27,9 @@ FAKE_USER_ID = -1
 ALARM_EMOJI_CODE = '\U000023F0'
 CALENDAR_EMOJI_CODE = '\U0001F4C5'
 CHECK_MARK_EMOJI_CODE = '\U00002705'
+CIRCLE_BLUE_EMOJI_CODE = '\U0001F535'
+CIRCLE_GREEN_EMOJI_CODE = '\U0001F7E2'
+CIRCLE_RED_EMOJI_CODE = '\U0001F534'
 CLIPBOARD_EMOJI_CODE = '\U0001F4CB'
 CLOCK_EMOJI_CODE = '\U0001F55A'
 HOURGLASS_EMOJI_CODE = '\U000023F3'
@@ -255,6 +259,7 @@ def help_command(update, context):
               f'/approve \- approve you\'ll be attending the match\n' \
               f'/ball \- inform you\'ll be bringing a match ball\n' \
               f'/print \- print the list\n' \
+              f'/shuffle \- shuffle the playing list to create 3 random teams\n' \
               f'/rules \- print match rules\n' \
               f'/schedule \- print the bot\'s schedule\n' \
               f'\n*Available only to admins* :\n' \
@@ -437,6 +442,47 @@ def print_command(update, context):
             text += f'  {FOOTBALL_EMOJI_CODE}'
         text += '\n'
 
+    user.send_message(text, parse_mode='MarkdownV2')
+
+
+def shuffle_command(update, context):
+    """Shuffle playing list to create 3 unique teams"""
+    user = update.message.from_user
+    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_public_warning(user, 'shuffle'))
+
+    day = datetime.now(tz=timezone('Asia/Jerusalem')).weekday()
+    current_time = datetime.now(tz=timezone('Asia/Jerusalem'))
+    # shuffle is allowed only on matchdays and only past 19:30
+    if day not in MATCHDAYS or current_time.time() < time(hour=19, minute=30, tzinfo=timezone('Asia/Jerusalem')):
+        return user.send_message(f'Hi {user.full_name}, '
+                                 f'shuffle command is reserved for matchdays, starting from 19:30!')
+
+    min_for_shuffle = 12
+    if len(playing) < min_for_shuffle:
+        return user.send_message(f'Hi {user.full_name}, there aren\'t enough players for a match shuffle...')
+
+    teams = {}
+    colors = ('Red', 'Green', 'Blue')
+    players = [player for player in playing if playing.index(player) < LIST_MAX_SIZE]
+    random.shuffle(players)
+
+    text = 'One possible way to divide into 3 teams\n\n'
+    for color in colors:
+        teams[color] = players[colors.index(color)::3]
+        if color == 'Red':
+            text += f'{CIRCLE_RED_EMOJI_CODE}{CIRCLE_RED_EMOJI_CODE}  {color} Team  ' \
+                   f'{CIRCLE_RED_EMOJI_CODE}{CIRCLE_RED_EMOJI_CODE}\n\n'
+        elif color == 'Green':
+            text += f'{CIRCLE_GREEN_EMOJI_CODE}{CIRCLE_GREEN_EMOJI_CODE}  {color} Team  ' \
+                   f'{CIRCLE_GREEN_EMOJI_CODE}{CIRCLE_GREEN_EMOJI_CODE}\n\n'
+        else:
+            text += f'{CIRCLE_BLUE_EMOJI_CODE}{CIRCLE_BLUE_EMOJI_CODE}  {color} Team  ' \
+                   f'{CIRCLE_BLUE_EMOJI_CODE}{CIRCLE_BLUE_EMOJI_CODE}\n\n'
+        team_players = teams[color]
+        for player in team_players:
+            text += f'{team_players.index(player) + 1}\. {player.user.first_name} {player.user.last_name}\n'
+        text += '\n'
     user.send_message(text, parse_mode='MarkdownV2')
 
 
@@ -758,6 +804,7 @@ def main():
     dp.add_handler(CommandHandler("approve", approve_command))
     dp.add_handler(CommandHandler("ball", ball_command))
     dp.add_handler(CommandHandler("print", print_command))
+    dp.add_handler(CommandHandler("shuffle", shuffle_command))
     dp.add_handler(CommandHandler("rules", rules_command))
     dp.add_handler(CommandHandler("schedule", schedule_command))
     dp.add_handler(CommandHandler("addUser", addUser_command))
