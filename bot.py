@@ -36,6 +36,9 @@ STOPWATCH_EMOJI_CODE = '\U000023F1'
 # Playing list. This data structure functions as a waiting list as well
 playing = deque()
 
+# Users to be added by admins
+invited = deque()
+
 # region ADMIN COMMANDS
 
 
@@ -86,6 +89,7 @@ def help_command(update, context):
               f'/create \- create a new list\n' \
               f'/add \- add yourself to the list\n' \
               f'/remove \- remove yourself from the list\n' \
+              f'/accept \- accept admin invitation to join the list\n' \
               f'/approve \- approve you\'ll be attending the match\n' \
               f'/ball \- inform you\'ll be bringing a match ball\n' \
               f'/print \- print the list\n' \
@@ -174,6 +178,28 @@ def remove_command(update, context):
 
     user.send_message(f'{user.full_name}, the bot has removed you from the playing list!')
     remove_player_from_list(context, index, player)
+
+
+def accept_command(update, context):
+    """Accept admin invitation to join the list"""
+    user = update.message.from_user
+    if user.username not in invited:
+        return user.send_message(f'Hi {user.full_name},\nYou were not invited by an admin!')
+
+    if not user_full_name_is_valid(user):
+        return user.send_message(f'Hi {user.full_name}, your telegram name is invalid!\n\n'
+                                 f'Please use /help to read on our naming rules, change it, and try again')
+
+    # for each invited player, there is a single fake player on the playing list with the same (unique) username
+    fake_player = [player for player in playing if player.user.username == user.username].pop()
+
+    index = playing.index(fake_player)
+    playing.remove(fake_player)
+    playing.insert(index, TechnionFCPlayer(user))
+    invited.remove(user.username)
+    if index < LIST_MAX_SIZE:
+        return user.send_message(f'Congratulations {user.full_name}, you\'re on the playing list!\n')
+    user.send_message(f'Hi {user.full_name}, you\'re on the waiting list')
 
 
 def approve_command(update, context):
@@ -475,6 +501,7 @@ def main():
     dp.add_handler(CommandHandler("create", create_command))
     dp.add_handler(CommandHandler("add", add_command))
     dp.add_handler(CommandHandler("remove", remove_command))
+    dp.add_handler(CommandHandler("accept", accept_command))
     dp.add_handler(CommandHandler("approve", approve_command))
     dp.add_handler(CommandHandler("ball", ball_command))
     dp.add_handler(CommandHandler("print", print_command))
