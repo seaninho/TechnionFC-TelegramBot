@@ -215,6 +215,10 @@ def clearAll_command(update, context):
     if is_admin(user, update):
         playing.clear()
         invited.clear()
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM PLAYING")  # delete current tables
+            cur.execute("DELETE FROM INVITED")
+        conn.commit()
         return update.message.reply_text('Both lists were cleared by an admin')
     update.message.reply_text(f'Hi {user.full_name}!\n\nPlease note, only admins are allowed to clear the lists!')
 
