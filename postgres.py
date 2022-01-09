@@ -23,5 +23,8 @@ cur.execute("CREATE TABLE IF NOT EXISTS PLAYING ("
 
 cur.execute("CREATE TABLE IF NOT EXISTS INVITED ("            
             "   username VARCHAR PRIMARY KEY)")
+
+cur.execute("CREATE TABLE IF NOT EXISTS ASKED ("            
+            "   user_id_or_name VARCHAR PRIMARY KEY)")
 cur.close()
 conn.commit()
