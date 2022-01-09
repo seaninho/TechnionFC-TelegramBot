@@ -48,6 +48,9 @@ playing = deque()
 # Users to be added by admins
 invited = deque()
 
+# Possible users to assume match liability
+asked = deque()
+
 # region ADMIN COMMANDS
 
 
@@ -214,9 +217,11 @@ def clearAll_command(update, context):
     if is_group_admin(update, context, user):
         playing.clear()
         invited.clear()
+        asked.clear()
         with conn.cursor() as cur:
             cur.execute("DELETE FROM PLAYING")  # delete current tables
             cur.execute("DELETE FROM INVITED")
+            cur.execute("DELETE FROM ASKED")
         conn.commit()
         return update.message.reply_text('Both lists were cleared by an admin')
     update.message.reply_text(f'Hi {user.full_name}!\n\nPlease note, only admins are allowed to clear the lists!')
@@ -261,6 +266,7 @@ def help_command(update, context):
               f'/create \- create a new list\n' \
               f'/add \- add yourself to the list\n' \
               f'/remove \- remove yourself from the list\n' \
+              f'/liable \- ask the tagged user to assume match liability\n' \
               f'/accept \- accept admin invitation to join the list\n' \
               f'/approve \- approve you\'ll be attending the match\n' \
               f'/ball \- inform you\'ll be bringing a match ball\n' \
@@ -355,6 +361,62 @@ def remove_command(update, context):
 
     user.send_message(f'{user.full_name}, the bot has removed you from the playing list!')
     remove_player_from_list(context, index, player)
+
+
+def liable_command(update, context):
+    """Ask the tagged user to assume match liability"""
+    user = update.message.from_user
+
+    if str(update.message.chat.id) != TELEGRAM_CHAT_ID:
+        return user.send_message(f'Hi {user.full_name}, the /liable command cannot be used in a private chat!')
+
+    player = TechnionFCPlayer(user)
+    if player not in playing:
+        return user.send_message(f'Hi {user.full_name}, you\'re not listed at all and therefore not liable!')
+
+    index = playing.index(player)
+    if not playing[index].liable:
+        return user.send_message(f'Hi {user.full_name}, you\'re not liable and therefore cannot transfer liability!')
+
+    # message MUST have exactly two entities to be valid: BOT_COMMAND and TEXT_MENTION or a MENTION
+    if len(update.message.entities) != 2:
+        return user.send_message(f'Hi {user.full_name}, please tag the user you wish will assume match liability!')
+
+    tagged_user = update.message.entities[1].user  # second message entity is a TEXT_MENTION or a MENTION
+    if tagged_user is None:  # if message entity is a MENTION
+        tagged_username = context.args[0]
+        username = tagged_username.replace('@', '')
+        fake_user = User(FAKE_USER_ID, first_name='', is_bot=False, username=username)
+        player = TechnionFCPlayer(fake_user)
+        player_name = username
+    else:  # message entity is a TEXT_MENTION
+        player = TechnionFCPlayer(tagged_user)
+        player_name = tagged_user.full_name
+
+    if player not in playing:
+        return user.send_message(f'Hi {user.full_name}, the user you tagged, {player_name}, is not listed...\n\n'
+                                 f'Please tag the correct user you wish will assume match liability!')
+    index = playing.index(player)
+    if playing[index].user.id == FAKE_USER_ID:
+        return user.send_message(f'Hi {user.full_name}, the user you tagged, {player_name}, '
+                                 f'has yet to accept the admin\'s invitation to join the list...\n\n'
+                                 f'Please tag a user on the playing list!')
+
+    if index >= LIST_MAX_SIZE:
+        return user.send_message(f'Hi {user.full_name}, the user you tagged, {player_name}, '
+                                 f'is on the waiting list...\n\n'
+                                 f'Please tag the correct user you wish will assume match liability!')
+
+    user_id_or_name = str(playing[index].user.id) \
+        if not playing[index].user.username \
+        else playing[index].user.username
+    if user_id_or_name in asked:
+        return user.send_message(f'Hi {user.full_name}, the user you tagged, {player_name}, '
+                                 f'has already been asked to assume match liability!')
+
+    asked.append(user_id_or_name)
+    update.message.reply_text(f'Hi {player_name}, {user.full_name} has asked you to assume match liability.\n\n'
+                              f'Please use the /assume command to assume match liability!')
 
 
 def accept_command(update, context):
@@ -573,6 +635,12 @@ def backup_to_database(context):
             cur.execute("INSERT INTO INVITED (username) VALUES(%s)", (username,))
             conn.commit()
 
+        cur.execute("DELETE FROM ASKED")
+        for user_id_or_name in asked:
+            # cur.execute inserted value must be a tuple
+            cur.execute("INSERT INTO ASKED (user_id_or_name) VALUES(%s)", (user_id_or_name,))
+            conn.commit()
+
 
 def kindly_reminder(context):
     """Remind players to approve their attendance"""
@@ -677,9 +745,11 @@ def list_cleanup(context):
     text = f'{CLOCK_EMOJI_CODE}  It\'s time for the bot\'s scheduled cleanup\.\.\.  {CLOCK_EMOJI_CODE}\n\n'
     playing.clear()
     invited.clear()
+    asked.clear()
     with conn.cursor() as cur:
         cur.execute("DELETE FROM PLAYING")          # delete current tables
         cur.execute("DELETE FROM INVITED")
+        cur.execute("DELETE FROM ASKED")
     conn.commit()
     text += 'List was cleared by the bot\!'
     context.bot.send_message(chat_id=context.job.context, text=text, parse_mode='MarkdownV2')
@@ -829,6 +899,8 @@ def restore_from_database():
         players_data = cur.fetchall()
         cur.execute("SELECT * FROM INVITED")
         invited_data = cur.fetchall()
+        cur.execute("SELECT * FROM ASKED")
+        asked_data = cur.fetchall()
 
     for player_data in players_data:
         (user_id, user_first_name, user_last_name, user_username,
@@ -840,6 +912,10 @@ def restore_from_database():
     for invited_tuple in invited_data:
         (invited_player,) = invited_tuple
         invited.append(invited_player)
+
+    for asked_tuple in asked_data:
+        (asked_player,) = asked_tuple
+        asked.append(asked_player)
 
 # endregion
 
@@ -858,6 +934,7 @@ def main():
     dp.add_handler(CommandHandler("create", create_command))
     dp.add_handler(CommandHandler("add", add_command))
     dp.add_handler(CommandHandler("remove", remove_command))
+    dp.add_handler(CommandHandler("liable", liable_command))
     dp.add_handler(CommandHandler("accept", accept_command))
     dp.add_handler(CommandHandler("approve", approve_command))
     dp.add_handler(CommandHandler("ball", ball_command))
