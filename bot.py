@@ -260,6 +260,7 @@ def help_command(update, context):
               f'/liable \- ask the tagged user to assume match liability\n' \
               f'/accept \- accept admin invitation to join the list\n' \
               f'/approve \- approve you\'ll be attending the match\n' \
+              f'/assume \- assume match liability\n' \
               f'/ball \- inform you\'ll be bringing a match ball\n' \
               f'/print \- print the list\n' \
               f'/shuffle \- shuffle the playing list to create 3 random teams\n' \
@@ -440,6 +441,36 @@ def approve_command(update, context):
     index = playing.index(player)
     playing[index].approved = True
     user.send_message(f'{user.full_name}, you\'ve approved you\'ll be attending the match!')
+
+
+def assume_command(update, context):
+    """Assume match liability"""
+    user = update.message.from_user
+    player = TechnionFCPlayer(user)
+    if player not in playing:
+        return user.send_message(f'Hi {user.full_name}, you\'re not listed at all.\n\n'
+                                 f'No need to assume match liability!')
+
+    index = playing.index(player)
+    if playing[index].liable:
+        return user.send_message(f'Hi {user.full_name}, you\'re already liable!\n\nNo need to assume match liability!')
+
+    if playing[index].user.id == FAKE_USER_ID:
+        return user.send_message(f'Hi {user.full_name}, '
+                                 f'please /accept admin invitation before assuming match liability!')
+
+    user_id_or_name = str(user.id) if user.username is None else user.username
+    if user_id_or_name not in asked:
+        return user.send_message(f'Hi {user.full_name},\nYou were not asked to assume match liability!')
+
+    for player in playing:
+        player.liable = False
+    playing[index].liable = True
+
+    asked.clear()
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM ASKED")
+    context.bot.send_message(TELEGRAM_CHAT_ID, f'{user.full_name} has assumed match liability!')
 
 
 def ball_command(update, context):
@@ -934,6 +965,7 @@ def main():
     dp.add_handler(CommandHandler("liable", liable_command))
     dp.add_handler(CommandHandler("accept", accept_command))
     dp.add_handler(CommandHandler("approve", approve_command))
+    dp.add_handler(CommandHandler("assume", assume_command))
     dp.add_handler(CommandHandler("ball", ball_command))
     dp.add_handler(CommandHandler("print", print_command))
     dp.add_handler(CommandHandler("shuffle", shuffle_command))
