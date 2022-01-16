@@ -156,19 +156,8 @@ def remove_command(update, context):
         return user.send_message(f'Hi {user.full_name}, you are liable for the match. Therefore, you cannot remove '
                                  f'yourself from the list until you ensure another player assumes match liability!')
 
-    # prioritizing players on the waiting list who've already approved their attendance
-    first_in_line = next((player_waiting for player_waiting in playing
-                          if playing.index(player_waiting) >= LIST_MAX_SIZE and player_waiting.approved),
-                         playing[LIST_MAX_SIZE] if len(playing) > LIST_MAX_SIZE else None)
-
-    playing.remove(player)
     user.send_message(f'{user.full_name}, the bot has removed you from the playing list!')
-
-    if index < LIST_MAX_SIZE and first_in_line is not None:
-        playing.remove(first_in_line)
-        playing.insert(LIST_MAX_SIZE - 1, first_in_line)        # first in line becomes last on the list
-        context.bot.send_message(first_in_line.user.id, f'Congratulations {first_in_line.user.full_name}, '
-                                                        f'you\'re on the playing list!')
+    remove_player_from_list(context, index, player)
 
 
 def approve_command(update, context):
@@ -285,6 +274,26 @@ def get_command_in_private_warning(user, command):
     return f'Hi {user.first_name},\n'\
            f'Please send the /{command} command using the group public chat!\n\n'\
            f'If you have any questions, feel free to ask :)'
+
+
+def remove_player_from_list(context, index, player):
+    """Remove a player from a given index on the list"""
+    day = datetime.now(tz=timezone('Asia/Jerusalem')).weekday()
+    current_time = datetime.now(tz=timezone('Asia/Jerusalem'))
+    if day in MATCHDAYS and current_time.hour >= 17:
+        # prioritizing players on the waiting list who've already approved their attendance
+        first_in_line = next((player_waiting for player_waiting in playing
+                              if playing.index(player_waiting) >= LIST_MAX_SIZE and player_waiting.approved),
+                             playing[LIST_MAX_SIZE] if len(playing) > LIST_MAX_SIZE else None)
+    else:
+        first_in_line = playing[LIST_MAX_SIZE] if len(playing) > LIST_MAX_SIZE else None
+
+    playing.remove(player)
+    if index < LIST_MAX_SIZE and first_in_line is not None:
+        playing.remove(first_in_line)
+        playing.insert(LIST_MAX_SIZE - 1, first_in_line)  # first in line becomes last on the list
+        context.bot.send_message(first_in_line.user.id, f'Congratulations {first_in_line.user.full_name}, '
+                                                        f'you\'re on the playing list!')
 
 
 def error(update, context):
