@@ -414,6 +414,15 @@ def remove_non_attenders(context):
 # region HELPER FUNCTIONS
 
 
+def is_admin(user, update):
+    """Check if user is an admin"""
+    admins = update.effective_chat.get_administrators()
+    for admin in admins:
+        if user == admin.user:
+            return True
+    return False
+
+
 def user_full_name_is_valid(user):
     """Check if user's full name is valid"""
     if len(user.first_name) <= 1 or user.last_name is None or len(user.last_name) <= 1:
