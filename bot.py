@@ -39,6 +39,13 @@ def is_group_member(update, context, user):
         return user_is_group_member
 
 
+def get_command_in_public_warning(user, command):
+    """Return a warning message for users who publicly send a command that should be sent in private"""
+    return f'Hi {user.first_name},\n'\
+           f'Please send the /{command} command using the bot\'s private chat @ https://t.me/FCTechnionBot.\n\n'\
+           f'If you have any questions, feel free to ask :)'
+
+
 def error(update, context):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, context.error)
