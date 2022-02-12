@@ -434,6 +434,21 @@ def is_group_member(update, context, user):
         return user_is_group_member
 
 
+def is_group_admin(update, context, user):
+    """Check if user is a group admin"""
+    user_is_group_admin = False
+    try:
+        chat_member = context.bot.get_chat_member(TELEGRAM_CHAT_ID, user.id)
+        if chat_member.status in ('creator', 'administrator'):
+            user_is_group_admin = True
+    except TelegramError:
+        update.message.reply_text(f'Hi {user.full_name},\n'
+                                  f'you are not a part of the Technion FC group...\n\n'
+                                  f'To join our group, please use {TELEGRAM_GROUP_INVITE_LINK}')
+    finally:
+        return user_is_group_admin
+
+
 def user_full_name_is_valid(user):
     """Check if user's full name is valid"""
     if len(user.first_name) <= 1 or user.last_name is None or len(user.last_name) <= 1:
