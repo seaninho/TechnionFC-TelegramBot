@@ -496,34 +496,7 @@ def print_command(update, context):
     if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
         return update.message.reply_text(get_command_in_public_warning(user, 'print'))
 
-    day = datetime.now(tz=timezone('Asia/Jerusalem')).weekday()
-    if 1 <= day <= 3:       # Tuesday - Thursday
-        text = f'{CALENDAR_EMOJI_CODE}  *Thursday 20:00*  {CALENDAR_EMOJI_CODE}\n\n'
-    else:                   # Friday - Monday
-        text = f'{CALENDAR_EMOJI_CODE}  *Monday 20:30*  {CALENDAR_EMOJI_CODE}\n\n'
-
-    waiting_flag = False
-    text += f'{STOPWATCH_EMOJI_CODE}{STOPWATCH_EMOJI_CODE}  Playing list  ' \
-            f'{STOPWATCH_EMOJI_CODE}{STOPWATCH_EMOJI_CODE}\n\n'
-    for player in playing:
-        index = playing.index(player)
-        if index >= LIST_MAX_SIZE and not waiting_flag:
-            text += f'\n{HOURGLASS_EMOJI_CODE}{HOURGLASS_EMOJI_CODE}  Waiting list  ' \
-                    f'{HOURGLASS_EMOJI_CODE}{HOURGLASS_EMOJI_CODE}\n\n'
-            waiting_flag = True
-        if not waiting_flag:
-            text += f'{index + 1}\. {player.user.full_name}'
-        else:
-            text += f'{index + 1 - LIST_MAX_SIZE}\. {player.user.full_name}'
-        if player.liable:
-            text += f'  {POINTING_EMOJI_CODE}'
-        if player.approved:
-            text += f'  {CHECK_MARK_EMOJI_CODE}'
-        if player.match_ball:
-            text += f'  {FOOTBALL_EMOJI_CODE}'
-        text += '\n'
-
-    user.send_message(text, parse_mode='MarkdownV2')
+    user.send_message(get_lists(), parse_mode='MarkdownV2')
 
 
 def shuffle_command(update, context):
@@ -848,6 +821,38 @@ def get_command_in_private_warning(user, command):
     return f'Hi {user.first_name},\n'\
            f'Please send the /{command} command using the group public chat!\n\n'\
            f'If you have any questions, feel free to ask :)'
+
+
+def get_lists():
+    """Return playing and waiting lists"""
+    day = datetime.now(tz=timezone('Asia/Jerusalem')).weekday()
+    if 1 <= day <= 3:  # Tuesday - Thursday
+        text = f'{CALENDAR_EMOJI_CODE}  *Thursday 20:00*  {CALENDAR_EMOJI_CODE}\n\n'
+    else:  # Friday - Monday
+        text = f'{CALENDAR_EMOJI_CODE}  *Monday 20:30*  {CALENDAR_EMOJI_CODE}\n\n'
+
+    waiting_flag = False
+    text += f'{STOPWATCH_EMOJI_CODE}{STOPWATCH_EMOJI_CODE}  Playing list  ' \
+            f'{STOPWATCH_EMOJI_CODE}{STOPWATCH_EMOJI_CODE}\n\n'
+
+    for player in playing:
+        index = playing.index(player)
+        if index >= LIST_MAX_SIZE and not waiting_flag:
+            text += f'\n{HOURGLASS_EMOJI_CODE}{HOURGLASS_EMOJI_CODE}  Waiting list  ' \
+                    f'{HOURGLASS_EMOJI_CODE}{HOURGLASS_EMOJI_CODE}\n\n'
+            waiting_flag = True
+        if not waiting_flag:
+            text += f'{index + 1}\. {player.user.full_name}'
+        else:
+            text += f'{index + 1 - LIST_MAX_SIZE}\. {player.user.full_name}'
+        if player.liable:
+            text += f'  {POINTING_EMOJI_CODE}'
+        if player.approved:
+            text += f'  {CHECK_MARK_EMOJI_CODE}'
+        if player.match_ball:
+            text += f'  {FOOTBALL_EMOJI_CODE}'
+        text += '\n'
+    return text
 
 
 def remove_player_from_list(context, index, player):
