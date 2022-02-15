@@ -39,6 +39,7 @@ FOOTBALL_EMOJI_CODE = '\U000026BD'
 NO_ENTRY_EMOJI_CODE = '\U000026D4'
 OK_SIGN_EMOJI_CODE = '\U0001F44C'
 POINTING_EMOJI_CODE = '\U0000261D'
+POINTING_DOWN_EMOJI_CODE = '\U0001F447'
 SCROLL_EMOJI_CODE = '\U0001F4DC'
 STOPWATCH_EMOJI_CODE = '\U000023F1'
 
@@ -585,8 +586,10 @@ def schedule_command(update, context):
               f'the bot will remove from the list players who have yet to approve their attendance\.\n' \
               f'When promoting players from the waiting list, ' \
               f'the bot will give preference to players who approved their attendance\.\n\n' \
-              f'3\. Each matchday at 23:59:59, the bot will clean up the list\.\n\n' \
-              f'4\. Each day at 05:00:00, the bot restarts itself\.\n' \
+              f'3\. Each matchday at 11:15, 13:15, 15:15, 17:15, 18:15, and 19:15, the bot will print ' \
+              f'the current state of the list\.\n\n' \
+              f'4\. Each matchday at 23:59:59, the bot will clean up the list\.\n\n' \
+              f'5\. Each day at 05:00:00, the bot restarts itself\.\n' \
               f'Please refrain from performing any actions during the 10 minutes before\.\n\n'
 
     user.send_message(message, parse_mode='MarkdownV2')
@@ -722,6 +725,15 @@ def remove_non_attenders(context):
             playing.insert(LIST_MAX_SIZE - 1, first_in_line)
 
         context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode='MarkdownV2')
+
+
+def print_lists(context):
+    """Print both playing and waiting lists"""
+    if not playing:     # playing list is empty. Therefore, no need to print it.
+        return
+    text = f'{POINTING_DOWN_EMOJI_CODE}  Current state of the list  {POINTING_DOWN_EMOJI_CODE}\n\n'
+    text += get_lists()
+    context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode='MarkdownV2')
 
 
 def list_cleanup(context):
@@ -1015,6 +1027,26 @@ def main():
                            days=MATCHDAYS)
     dp.job_queue.run_daily(remove_non_attenders,
                            time(hour=18, minute=0, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS)
+
+    # run print_list every matchday @ 11:15, 13:15, 15:15, 17:15, 18:15, and 19:15
+    dp.job_queue.run_daily(print_lists,
+                           time(hour=11, minute=15, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS)
+    dp.job_queue.run_daily(print_lists,
+                           time(hour=13, minute=15, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS)
+    dp.job_queue.run_daily(print_lists,
+                           time(hour=15, minute=15, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS)
+    dp.job_queue.run_daily(print_lists,
+                           time(hour=17, minute=15, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS)
+    dp.job_queue.run_daily(print_lists,
+                           time(hour=18, minute=15, tzinfo=timezone('Asia/Jerusalem')),
+                           days=MATCHDAYS)
+    dp.job_queue.run_daily(print_lists,
+                           time(hour=19, minute=15, tzinfo=timezone('Asia/Jerusalem')),
                            days=MATCHDAYS)
 
     # run clear_list every matchday @ 23:59:59
