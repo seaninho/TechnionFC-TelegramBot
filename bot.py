@@ -124,16 +124,7 @@ def removeUser_command(update, context):
     if len(update.message.entities) != 2:
         return update.message.reply_text(f'Hi {user.full_name}, please make sure to tag the user you wish to remove!')
 
-    tagged_user = update.message.entities[1].user   # second message entity is a TEXT_MENTION or a MENTION
-    if tagged_user is None:                         # if message entity is a MENTION
-        tagged_username = context.args[0]
-        username = tagged_username.replace('@', '')
-        fake_user = User(FAKE_USER_ID, first_name='', is_bot=False, username=username)
-        player = TechnionFCPlayer(fake_user)
-        player_name = username
-    else:                                           # message entity is a TEXT_MENTION
-        player = TechnionFCPlayer(tagged_user)
-        player_name = tagged_user.full_name
+    player, player_name = get_player_from_entity_id(update, context, entity_id=1)
 
     if player not in playing:
         return update.message.reply_text(f'Hi {user.full_name}, the player you wish to remove, '
@@ -382,16 +373,7 @@ def liable_command(update, context):
     if len(update.message.entities) != 2:
         return user.send_message(f'Hi {user.full_name}, please tag the user you wish will assume match liability!')
 
-    tagged_user = update.message.entities[1].user  # second message entity is a TEXT_MENTION or a MENTION
-    if tagged_user is None:  # if message entity is a MENTION
-        tagged_username = context.args[0]
-        username = tagged_username.replace('@', '')
-        fake_user = User(FAKE_USER_ID, first_name='', is_bot=False, username=username)
-        player = TechnionFCPlayer(fake_user)
-        player_name = username
-    else:  # message entity is a TEXT_MENTION
-        player = TechnionFCPlayer(tagged_user)
-        player_name = tagged_user.full_name
+    player, player_name = get_player_from_entity_id(update, context, entity_id=1)
 
     if player not in playing:
         return user.send_message(f'Hi {user.full_name}, the user you tagged, {player_name}, is not listed...\n\n'
@@ -885,6 +867,21 @@ def addUser_by_username(user, index, update, context):
 
     context.job_queue.run_once(check_accepted, ACCEPT_TIMEFRAME, context=username)
     return update.message.reply_text(text)
+
+
+def get_player_from_entity_id(update, context, entity_id):
+    """Get player (and player name) using message entity id"""
+    tagged_user = update.message.entities[entity_id].user   # second message entity is a TEXT_MENTION or a MENTION
+    if tagged_user is None:                                 # if message entity is a MENTION
+        tagged_username = context.args[entity_id-1]
+        username = tagged_username.replace('@', '')
+        fake_user = User(FAKE_USER_ID, first_name='', is_bot=False, username=username)
+        player = TechnionFCPlayer(fake_user)
+        player_name = username
+    else:                                                   # message entity is a TEXT_MENTION
+        player = TechnionFCPlayer(tagged_user)
+        player_name = tagged_user.full_name
+    return player, player_name
 
 
 def error(update, context):
