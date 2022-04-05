@@ -218,6 +218,38 @@ def clearAll_command(update, context):
         return update.message.reply_text('Both lists were cleared by an admin')
     update.message.reply_text(f'Hi {user.full_name}!\n\nPlease note, only admins are allowed to clear the lists!')
 
+
+def transferLiability_command(update, context):
+    """Transfer match liability from one player to another"""
+    user = update.message.from_user
+    if str(update.message.chat.id) != TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_private_warning(user, 'transferLiability'))
+    if not is_group_admin(update, context, user):
+        return update.message.reply_text(f'Hi {user.full_name}, you\'re not an admin, '
+                                         f'and therefore cannot use the /transferLiability command!')
+
+    # message MUST have exactly three entities to be valid: BOT_COMMAND and two TEXT_MENTION or MENTION
+    if len(update.message.entities) != 3:
+        return update.message.reply_text(f'Hi {user.full_name}, please make sure to tag both users!')
+
+    liable_player, liable_player_name = get_player_from_entity_id(update, context, entity_id=1)
+    assuming_player, assuming_player_name = get_player_from_entity_id(update, context, entity_id=2)
+
+    for player, player_name in (liable_player, liable_player_name), (assuming_player, assuming_player_name):
+        if player not in playing:
+            return update.message.reply_text(f'Hi {user.full_name}, {player_name} is not listed...\n\n'
+                                             f'Please make sure to tag the correct users!')
+    index_liable = playing.index(liable_player)
+    if not playing[index_liable].liable:
+        return update.message.reply_text(f'Hi {user.full_name}, {liable_player_name} is not liable for the match. '
+                                         f'Please make sure to tag the correct users!')
+
+    index_assuming = playing.index(assuming_player)
+    playing[index_liable].liable = False
+    playing[index_assuming].liable = True
+    text = f'{user.full_name} has transferred match liability from {liable_player_name} to {assuming_player_name}!'
+    update.message.reply_text(text)
+
 # endregion
 
 # region USER COMMANDS
@@ -272,7 +304,8 @@ def help_command(update, context):
               f'/addUser \- add the tagged user to the list\n' \
               f'/removeUser \- remove the tagged user from the list\n' \
               f'/createList \- create a new list with tagged users\n' \
-              f'/clearAll \- clear the list\n'
+              f'/clearAll \- clear the list\n' \
+              f'/transferLiability \- transfer match liability between tagged users\n'
 
     user.send_message(message, parse_mode='MarkdownV2')
 
@@ -992,6 +1025,7 @@ def main():
     dp.add_handler(CommandHandler("removeUser", removeUser_command))
     dp.add_handler(CommandHandler("createList", createList_command))
     dp.add_handler(CommandHandler("clearAll", clearAll_command))
+    dp.add_handler(CommandHandler("transferLiability", transferLiability_command))
 
     # log all errors
     dp.add_error_handler(error)
