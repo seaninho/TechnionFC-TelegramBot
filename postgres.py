@@ -19,6 +19,7 @@ cur.execute("CREATE TABLE IF NOT EXISTS PLAYING ("
             "   player_liable BOOLEAN NOT NULL,"
             "   player_approved BOOLEAN NOT NULL,"
             "   player_match_ball BOOLEAN NOT NULL,"
+            "   player_training_bib BOOLEAN NOT NULL,"
             "   PRIMARY KEY (user_id, user_first_name, user_last_name, user_username))")
 
 cur.execute("CREATE TABLE IF NOT EXISTS INVITED ("            

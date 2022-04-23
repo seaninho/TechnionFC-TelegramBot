@@ -22,11 +22,13 @@ logger = logging.getLogger(__name__)
 MATCHDAYS = (0, 3)                  # matchdays are Monday and Thursday
 LIST_MAX_SIZE = 15                  # there are 3 teams, each team has 5 players (set by pitch size)
 BACKUP_INTERVAL = 600               # backup interval set to 10 minutes
+BIB_CHECK_UP_INTERVAL = 300         # check-up interval set to 5 minutes
 ACCEPT_TIMEFRAME = 86400            # accept timeframe is set to 24 hours
 FAKE_USER_ID = -1
 
 # Emojis
 ALARM_EMOJI_CODE = '\U000023F0'
+BIB_EMOJI_CODE = '\U0001F3BD'
 CALENDAR_EMOJI_CODE = '\U0001F4C5'
 CHECK_MARK_EMOJI_CODE = '\U00002705'
 CIRCLE_BLUE_EMOJI_CODE = '\U0001F535'
@@ -98,7 +100,7 @@ def addUser_command(update, context):
         return update.message.reply_text(f'Hi {user.full_name}, you\'ve tried adding a user with an invalid '
                                          f'telegram name!\n\nPlease advise him to change it and try again...')
 
-    tagged_player = TechnionFCPlayer(tagged_user)
+    tagged_player = TechnionFCPlayer(tagged_user, training_bib=True)
     if tagged_player in playing:
         return update.message.reply_text(f'Hi {user.full_name}, '
                                          f'user {tagged_user.full_name} is already on the playing list!')
@@ -184,7 +186,7 @@ def createList_command(update, context):
             tagged_username = context.args[index - 1]       # argument index = entity index - 1
             username = tagged_username.replace('@', '')
             fake_user = User(FAKE_USER_ID, 'Reserved for', is_bot=False, last_name=username, username=username)
-            fake_player = TechnionFCPlayer(fake_user)
+            fake_player = TechnionFCPlayer(fake_user, training_bib=True)
             invited.append(username)
             playing.append(fake_player)
 
@@ -195,7 +197,7 @@ def createList_command(update, context):
             context.job_queue.run_once(check_accepted, ACCEPT_TIMEFRAME, context=(update.message.chat_id, username))
             update.message.reply_text(text)
         else:
-            tagged_player = TechnionFCPlayer(tagged_user)
+            tagged_player = TechnionFCPlayer(tagged_user, training_bib=True)
             playing.append(tagged_player)
             text = f'Congratulations {tagged_user.full_name}, you were added to the playing list by {user.full_name}!'
             update.message.reply_text(text)
@@ -284,9 +286,12 @@ def help_command(update, context):
               f'himself from the playing list or if an admin removed one of the players\.\n\n' \
               f'8\. Every matchday, the players on the playing list MUST approve their attendance by 16:00\.\n' \
               f'Players who fail to do so will be removed from the playing list\!\n\n' \
-              f'9\. Creating a list for Monday becomes possible on Saturday evening starting at 21:30\.\n' \
+              f'9\. Training bibs are MANDATORY\!\nPlayers who do not have one, must purchase one to play\.\n' \
+              f'The link for purchasing the agreed\-upon bib can be found here https://t\.me/c/1760505503/5543\n' \
+              f'Players who do not approve of wearing bibs will be removed from the playing list\!\n\n' \
+              f'10\. Creating a list for Monday becomes possible on Saturday evening starting at 21:30\.\n' \
               f'Creating a list for Thursday becomes possible on Tuesday evening starting at 21:30\.\n\n' \
-              f'10\. Telegram Bots cannot initiate a conversation with a user \(there is no way around this\)\.\n' \
+              f'11\. Telegram Bots cannot initiate a conversation with a user \(there is no way around this\)\.\n' \
               f'So, when possible, please use bot commands in a private chat @ https://t\.me/FCTechnionBot\n' \
               f'\n*Available user commands* :\n' \
               f'/create \- create a new list\n' \
@@ -296,6 +301,7 @@ def help_command(update, context):
               f'/accept \- accept admin invitation to join the list\n' \
               f'/approve \- approve you\'ll be attending the match\n' \
               f'/assume \- assume match liability\n' \
+              f'/bib \- approve you\'ll be bringing the training bib\n' \
               f'/ball \- inform you\'ll be bringing a match ball\n' \
               f'/print \- print the list\n' \
               f'/shuffle \- shuffle the playing list to create 3 random teams\n' \
@@ -339,7 +345,9 @@ def create_command(update, context):
     context.bot.send_message(TELEGRAM_CHAT_ID, f'{user.full_name} has created a new playing list!')
     user.send_message(f'Congratulations {user.full_name}, you\'ve created a new playing list!\n\n'
                       f'Please note, you\'re liable for the match!\n'
-                      f'For more information, please see the /help message')
+                      f'For more information, please see the /help message.\n\n'
+                      f'Please use the /bib command to approve you\'ll be bringing the training bib!')
+    context.job_queue.run_once(check_training_bib, BIB_CHECK_UP_INTERVAL, context=user)
 
 
 def add_command(update, context):
@@ -367,9 +375,13 @@ def add_command(update, context):
         playing.append(player)
         index = playing.index(player)
         if index < LIST_MAX_SIZE:
-            return user.send_message(f'Congratulations {user.full_name}, you\'re on the playing list!\n')
+            user.send_message(f'Congratulations {user.full_name}, you\'re on the playing list!\n'
+                              f'Please use the /bib command to approve you\'ll be bringing the training bib!')
         else:
-            return user.send_message(f'Playing list is full!\n\n{user.full_name}, you\'re on the waiting list')
+            user.send_message(f'Playing list is full!\n\n{user.full_name}, you\'re on the waiting list...\n'
+                              f'Please use the /bib command to approve you\'ll be bringing the training bib!')
+
+        context.job_queue.run_once(check_training_bib, BIB_CHECK_UP_INTERVAL, context=user)
 
 
 def remove_command(update, context):
@@ -509,6 +521,27 @@ def assume_command(update, context):
     context.bot.send_message(TELEGRAM_CHAT_ID, f'{user.full_name} has assumed match liability!')
 
 
+def bib_command(update, context):
+    """Mark player approval for bringing the training bib"""
+    user = update.message.from_user
+    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
+        return update.message.reply_text(get_command_in_public_warning(user, 'bib'))
+
+    player = TechnionFCPlayer(user)
+    if player not in playing:
+        return user.send_message(f'Hi {user.full_name}, you\'re not listed at all.\n\n'
+                                 f'No need to bring the training bib!')
+
+    index = playing.index(player)
+    playing[index].training_bib = not playing[index].training_bib
+    if playing[index].training_bib:
+        user.send_message(f'Hi {user.full_name}, you\'ve approved you\'ll be bringing the training bib!')
+    else:
+        user.send_message(f'Hi {user.full_name},\n'
+                          f'Please use the /bib command to approve you\'ll be bringing the training bib!')
+        context.job_queue.run_once(check_training_bib, BIB_CHECK_UP_INTERVAL, context=player)
+
+
 def ball_command(update, context):
     """Mark player approval for bringing a match ball"""
     user = update.message.from_user
@@ -584,21 +617,22 @@ def rules_command(update, context):
 
     message = f'\n{SCROLL_EMOJI_CODE}{SCROLL_EMOJI_CODE}  *Match Rules*  {SCROLL_EMOJI_CODE}{SCROLL_EMOJI_CODE}\n\n' \
               f'0\. There are three \(3\) teams\. Each team consists of five \(5\) players\.\n\n' \
-              f'1\. A match lasts eight \(8\) minutes or up until one team scores two \(2\) goals\.\n\n' \
-              f'2\. In case of a tie, there will be two \(2\) additional minutes of stoppage time\.\n\n' \
-              f'3\. In case the standard time of play passes and the game is still in play, ' \
+              f'1\. Each player must have a blue and green training bib\.\n\n' \
+              f'2\. A match lasts eight \(8\) minutes or up until one team scores two \(2\) goals\.\n\n' \
+              f'3\. In case of a tie, there will be two \(2\) additional minutes of stoppage time\.\n\n' \
+              f'4\. In case the standard time of play passes and the game is still in play, ' \
               f'the match will have one last attack\.\n\n' \
-              f'4\. The "last attack" ends when \(whichever comes first\):\n' \
+              f'5\. The "last attack" ends when \(whichever comes first\):\n' \
               f'    a\. A team gets a goal kick\.\n' \
               f'    b\. The ball has been out for a throw\-out for the third time\.\n' \
               f'    \* corner\-kicks are considered a part of the attack\.\n\n' \
-              f'5\. In case the stoppage time ends in a tie, there are two options:\n' \
+              f'6\. In case the stoppage time ends in a tie, there are two options:\n' \
               f'    a\. The veteran team \(if there is one\) leaves\.\n' \
               f'    b\. Each team gets a penalty kick\.\n' \
               f'        The first team that scores while the other misses, stays\.\n\n' \
-              f'6\. The goalkeeper\'s movement is limited to his team\'s half\.\n\n' \
-              f'7\. The goalkeeper can score a goal\.\n\n' \
-              f'8\. The goalkeeper is replaced in each of the following cases \(whichever comes first\):\n' \
+              f'7\. The goalkeeper\'s movement is limited to his team\'s half\.\n\n' \
+              f'8\. The goalkeeper can score a goal\.\n\n' \
+              f'9\. The goalkeeper is replaced in each of the following cases \(whichever comes first\):\n' \
               f'    a\. He has conceded a goal\.\n' \
               f'    b\. He has been in goal the entire match \(from start to finish\)\.\n\n'
 
@@ -613,18 +647,21 @@ def schedule_command(update, context):
 
     message = f'\n{CLIPBOARD_EMOJI_CODE}{CLIPBOARD_EMOJI_CODE}  *Bot schedule*  ' \
               f'{CLIPBOARD_EMOJI_CODE}{CLIPBOARD_EMOJI_CODE}\n\n' \
-              f'0\. Each matchday at 12:30, ' \
+              f'0\. Once a player has added himself to the playing list, ' \
+              f'he has 5 minutes to approve he will be bringing the training bib\.\n' \
+              f'Failing to do so on time will cause the bot to remove said player from the playing list\.\n\n' \
+              f'1\. Each matchday at 12:30, ' \
               f'the bot will remind players who have yet to approve their attendance to do so\.\n\n' \
-              f'1\. Each matchday at 15:00, ' \
+              f'2\. Each matchday at 15:00, ' \
               f'the bot will give a final reminder for players who have yet to approve their attendance to do so\.\n\n' \
-              f'2\. Each matchday at 16:00, 16:30, 17:00, 17:30, and 18:00, ' \
+              f'3\. Each matchday at 16:00, 16:30, 17:00, 17:30, and 18:00, ' \
               f'the bot will remove from the list players who have yet to approve their attendance\.\n' \
               f'When promoting players from the waiting list, ' \
               f'the bot will give preference to players who approved their attendance\.\n\n' \
-              f'3\. Each matchday at 11:15, 13:15, 15:15, 17:15, 18:15, and 19:15, the bot will print ' \
+              f'4\. Each matchday at 11:15, 13:15, 15:15, 17:15, 18:15, and 19:15, the bot will print ' \
               f'the current state of the list\.\n\n' \
-              f'4\. Each matchday at 23:59:59, the bot will clean up the list\.\n\n' \
-              f'5\. Each day at 05:00:00, the bot restarts itself\.\n' \
+              f'5\. Each matchday at 23:59:59, the bot will clean up the list\.\n\n' \
+              f'6\. Each day at 05:00:00, the bot restarts itself\.\n' \
               f'Please refrain from performing any actions during the 10 minutes before\.\n\n'
 
     user.send_message(message, parse_mode='MarkdownV2')
@@ -646,11 +683,12 @@ def backup_to_database(context):
             player_liable = player.liable
             player_approved = player.approved
             player_match_ball = player.match_ball
-            cur.execute("INSERT INTO PLAYING (user_id, user_first_name, user_last_name, "
-                        "user_username, player_liable, player_approved, player_match_ball)"
-                        "VALUES(%s, %s, %s, %s, %s, %s, %s)",
+            player_training_bib = player.training_bib
+            cur.execute("INSERT INTO PLAYING (user_id, user_first_name, user_last_name, user_username, "
+                        "player_liable, player_approved, player_match_ball, player_training_bib)"
+                        "VALUES(%s, %s, %s, %s, %s, %s, %s, %s)",
                         (user_id, user_first_name, user_last_name, user_username,
-                         player_liable, player_approved, player_match_ball))
+                         player_liable, player_approved, player_match_ball, player_training_bib))
             conn.commit()
 
         cur.execute("DELETE FROM INVITED")
@@ -762,12 +800,42 @@ def remove_non_attenders(context):
         context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode='MarkdownV2')
 
 
+def check_training_bib(context):
+    """Check if the user approved on time that he'll be bringing the training bib"""
+    user = context.job.context
+    player = TechnionFCPlayer(user)
+    if player not in playing:
+        return
+
+    index = playing.index(player)
+    player = playing[index]
+    if player.training_bib:
+        return
+
+    if player.liable:
+        text = f'Hi {player.user.mention_markdown_v2()},\n' \
+               f'The timeframe for approving you\'ll be bringing the training bib has passed\!\n\n' \
+               f'Please transfer match liability if you do not have a bib or use the bib command to approve you will' \
+               f'be bringing the training bib\.'
+        return context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode='MarkdownV2')
+
+    index = playing.index(player)
+    remove_player_from_list(context, index, player)
+    text = f'Hi {player.user.full_name}, the bot has removed you from the playing list for failing to approve ' \
+           f'you\'ll be brining the training bib in time.\n\n'
+    context.bot.send_message(chat_id=player.user.id, text=text)
+
+
 def print_lists(context):
     """Print both playing and waiting lists"""
     if not playing:     # playing list is empty. Therefore, no need to print it.
         return
     text = f'{POINTING_DOWN_EMOJI_CODE}  Current state of the list  {POINTING_DOWN_EMOJI_CODE}\n\n'
     text += get_lists()
+    if context.job.context:
+        text += f'\n\n{BIB_EMOJI_CODE}{BIB_EMOJI_CODE}{BIB_EMOJI_CODE}' \
+                f'\nDon\'t forget to bring your training bib\!\n' \
+                f'{BIB_EMOJI_CODE}{BIB_EMOJI_CODE}{BIB_EMOJI_CODE}'
     context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode='MarkdownV2')
 
 
@@ -864,6 +932,8 @@ def get_lists():
             text += f'  {POINTING_EMOJI_CODE}'
         if player.approved:
             text += f'  {CHECK_MARK_EMOJI_CODE}'
+        if player.training_bib:
+            text += f'  {BIB_EMOJI_CODE}'
         if player.match_ball:
             text += f'  {FOOTBALL_EMOJI_CODE}'
         text += '\n'
@@ -952,9 +1022,9 @@ def restore_from_database():
 
     for player_data in players_data:
         (user_id, user_first_name, user_last_name, user_username,
-         player_liable, player_approved, player_match_ball) = player_data
+         player_liable, player_approved, player_match_ball, player_training_bib) = player_data
         user = User(user_id, first_name=user_first_name, is_bot=False, last_name=user_last_name, username=user_username)
-        player = TechnionFCPlayer(user, player_liable, player_approved, player_match_ball)
+        player = TechnionFCPlayer(user, player_liable, player_approved, player_match_ball, player_training_bib)
         playing.append(player)
 
     for invited_tuple in invited_data:
@@ -986,6 +1056,7 @@ def main():
     dp.add_handler(CommandHandler("accept", accept_command))
     dp.add_handler(CommandHandler("approve", approve_command))
     dp.add_handler(CommandHandler("assume", assume_command))
+    dp.add_handler(CommandHandler("bib", bib_command))
     dp.add_handler(CommandHandler("ball", ball_command))
     dp.add_handler(CommandHandler("print", print_command))
     dp.add_handler(CommandHandler("shuffle", shuffle_command))
@@ -1051,7 +1122,8 @@ def main():
                            days=MATCHDAYS)
     dp.job_queue.run_daily(print_lists,
                            time(hour=19, minute=15, tzinfo=timezone('Asia/Jerusalem')),
-                           days=MATCHDAYS)
+                           days=MATCHDAYS,
+                           context=True)
 
     # run clear_list every matchday @ 23:59:59
     dp.job_queue.run_daily(list_cleanup,

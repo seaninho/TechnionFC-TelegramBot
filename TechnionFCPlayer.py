@@ -1,10 +1,11 @@
 class TechnionFCPlayer:
     """This object represents a Technion FC player"""
-    def __init__(self, user, liable=False, approved=False, match_ball=False):
+    def __init__(self, user, liable=False, approved=False, match_ball=False, training_bib=False):
         self.user = user                    # telegram User object
         self.liable = liable                # match liability
         self.approved = approved            # indicates whether the player has approved he'll be attending
         self.match_ball = match_ball        # indicates whether the player will bring a match ball
+        self.training_bib = training_bib    # indicates whether the player will bring a training bib
 
     def __eq__(self, other):
         if isinstance(other, TechnionFCPlayer):
