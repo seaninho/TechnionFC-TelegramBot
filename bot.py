@@ -300,7 +300,7 @@ def help_command(update, context):
     message = f'Welcome to the *Technion Football Club*\!\n\n'\
               f'This bot\'s purpose is to ease the players\' registration process {OK_SIGN_EMOJI_CODE}\n' \
               f'\n*Club rules* :\n' \
-              f'0\. Club matchdays are: _Monday @ 20:30\-22:30, Thursday @ 20:00\-22:00_\n' \
+              f'0\. Club matchdays are: _Monday @ 20:00\-22:30, Thursday @ 20:00\-22:00_\n' \
               f'If you can not attend the FULL 2 hours, please refrain from adding yourself to the list\.\n\n' \
               f'1\. Players MUST use their full names in their telegram profiles \(Hebrew or English\)\.\n' \
               f'NO SPECIAL CHARACTERS ALLOWED\!\!\!\n\n' \
@@ -945,7 +945,7 @@ def get_lists():
     if 1 <= day <= 3:  # Tuesday - Thursday
         text = f'{CALENDAR_EMOJI_CODE}  *Thursday 20:00*  {CALENDAR_EMOJI_CODE}\n\n'
     else:  # Friday - Monday
-        text = f'{CALENDAR_EMOJI_CODE}  *Monday 20:30*  {CALENDAR_EMOJI_CODE}\n\n'
+        text = f'{CALENDAR_EMOJI_CODE}  *Monday 20:00*  {CALENDAR_EMOJI_CODE}\n\n'
 
     waiting_flag = False
     text += f'{STOPWATCH_EMOJI_CODE}{STOPWATCH_EMOJI_CODE}  Playing list  ' \
