@@ -5,7 +5,7 @@ from datetime import datetime, time
 from pytz import timezone
 from collections import deque
 
-from telegram import User
+from telegram import User, TelegramError
 from telegram.ext import Updater, CommandHandler
 
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, PORT
@@ -699,6 +699,16 @@ def schedule_command(update, context):
 
     user.send_message(message, parse_mode='MarkdownV2')
 
+
+def isGroupMember_command(update, context):
+    """Check if user is a group member"""
+    user = update.message.from_user
+    try:
+        chat_member = context.bot.get_chat_member(TELEGRAM_CHAT_ID, user.id)
+    except TelegramError:
+        return update.message.reply_text(f'Hi {user.full_name}, you are not a part of the Technion FC group...')
+    return update.message.reply_text(f'Hi {user.full_name}, you are a part of the Technion FC group!')
+
 # endregion
 
 # region TELEGRAM JOBS
@@ -1101,6 +1111,7 @@ def main():
     dp.add_handler(CommandHandler("clearAll", clearAll_command))
     dp.add_handler(CommandHandler("transferLiability", transferLiability_command))
     dp.add_handler(CommandHandler("liableUser", liableUser_command))
+    dp.add_handler(CommandHandler("isGroupMember", isGroupMember_command))
 
     # log all errors
     dp.add_error_handler(error)
