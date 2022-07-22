@@ -46,6 +46,13 @@ def get_command_in_public_warning(user, command):
            f'If you have any questions, feel free to ask :)'
 
 
+def get_command_in_private_warning(user, command):
+    """Return a warning message for users who privately send a command that should be sent in public"""
+    return f'Hi {user.first_name},\n'\
+           f'Please send the /{command} command using the group public chat!\n\n'\
+           f'If you have any questions, feel free to ask :)'
+
+
 def error(update, context):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, context.error)
