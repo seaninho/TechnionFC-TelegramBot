@@ -1,8 +1,9 @@
 import logging
 
+from telegram import TelegramError
 from telegram.ext import Updater, CommandHandler
 
-from config import TELEGRAM_BOT_TOKEN, PORT
+from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_GROUP_INVITE_LINK, PORT
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -17,6 +18,25 @@ def start_command(update, context):
     message = 'TechnionFC Bot has started operating\.\.\.\n\nPlease use the /help command to list your options'
 
     user.send_message(message, parse_mode='MarkdownV2')
+
+
+def is_group_member(update, context, user):
+    """Check if user is a group member"""
+    user_is_group_member = True
+    try:
+        chat_member = context.bot.get_chat_member(TELEGRAM_CHAT_ID, user.id)
+        if chat_member.status in ('left', 'kicked'):
+            user_is_group_member = False
+            update.message.reply_text(f'Hi {user.full_name},\n'
+                                      f'you are not a part of the Technion FC group anymore...\n\n'
+                                      f'To rejoin our group, please use {TELEGRAM_GROUP_INVITE_LINK}')
+    except TelegramError:
+        user_is_group_member = False
+        update.message.reply_text(f'Hi {user.full_name},\n'
+                                  f'you are not a part of the Technion FC group...\n\n'
+                                  f'To join our group, please use {TELEGRAM_GROUP_INVITE_LINK}')
+    finally:
+        return user_is_group_member
 
 
 def error(update, context):
