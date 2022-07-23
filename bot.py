@@ -24,9 +24,14 @@ LIST_MAX_SIZE = 15                  # there are 3 teams, each team has 5 players
 BACKUP_INTERVAL = 600               # backup interval set to 10 minutes
 ACCEPT_TIMEFRAME = 86400            # accept timeframe is set to 24 hours
 FAKE_USER_ID = -1
+ADMIN_PRIVILEGE = 'admin'
+MEMBER_PRIVILEGE = 'member'
+PUBLIC_COMMAND = 'public'
+PRIVATE_COMMAND = 'private'
 
 # Emojis
 ALARM_EMOJI_CODE = '\U000023F0'
+BIB_EMOJI_CODE = '\U0001F3BD'
 CALENDAR_EMOJI_CODE = '\U0001F4C5'
 CHECK_MARK_EMOJI_CODE = '\U00002705'
 CIRCLE_BLUE_EMOJI_CODE = '\U0001F535'
@@ -68,12 +73,8 @@ def addUser_command(update, context):
 
     When provided with an index, place the tagged user accordingly"""
     user = update.message.from_user
-    if str(update.message.chat.id) != TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_private_warning(user, 'addUser'))
-    if not is_group_admin(update, context, user):
-        return update.message.reply_text(f'Hi {user.full_name}, you\'re not an admin, '
-                                         f'and therefore cannot use the /addUser command!\n'
-                                         f'Please use the /add command if you wish to be added to the list.')
+    if not valid_command_usage(update, context, user, ADMIN_PRIVILEGE, PUBLIC_COMMAND, 'addUser'):
+        return
 
     # message MUST have exactly two entities to be valid: BOT_COMMAND and TEXT_MENTION or a MENTION
     if len(update.message.entities) != 2:
@@ -114,12 +115,8 @@ def addUser_command(update, context):
 def removeUser_command(update, context):
     """Remove tagged user from the playing list"""
     user = update.message.from_user
-    if str(update.message.chat.id) != TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_private_warning(user, 'removeUser'))
-    if not is_group_admin(update, context, user):
-        return update.message.reply_text(f'Hi {user.full_name}, you\'re not an admin, '
-                                         f'and therefore cannot use the /removeUser command!\n'
-                                         f'Please use the /remove command if you wish to be removed from the list.')
+    if not valid_command_usage(update, context, user, ADMIN_PRIVILEGE, PUBLIC_COMMAND, 'removeUser'):
+        return
 
     # message MUST have exactly two entities to be valid: BOT_COMMAND and TEXT_MENTION or a MENTION
     if len(update.message.entities) != 2:
@@ -148,11 +145,8 @@ def removeUser_command(update, context):
 def createList_command(update, context):
     """Build list with tagged users"""
     user = update.message.from_user
-    if str(update.message.chat.id) != TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_private_warning(user, 'createList'))
-    if not is_group_admin(update, context, user):
-        return update.message.reply_text(f'Hi {user.full_name}, you\'re not an admin, '
-                                         f'and therefore cannot use the /createList command!')
+    if not valid_command_usage(update, context, user, ADMIN_PRIVILEGE, PUBLIC_COMMAND, 'createList'):
+        return
 
     if len(context.args) != len(set(context.args)):         # not all entities are unique
         return update.message.reply_text(f'Hi {user.full_name}, please make sure not to tag the same user twice!')
@@ -204,29 +198,25 @@ def createList_command(update, context):
 def clearAll_command(update, context):
     """Clear both playing and waiting lists"""
     user = update.message.from_user
-    if str(update.message.chat.id) != TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_private_warning(user, 'clearAll'))
-    if is_group_admin(update, context, user):
-        playing.clear()
-        invited.clear()
-        asked.clear()
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM PLAYING")  # delete current tables
-            cur.execute("DELETE FROM INVITED")
-            cur.execute("DELETE FROM ASKED")
-        conn.commit()
-        return update.message.reply_text('Both lists were cleared by an admin')
-    update.message.reply_text(f'Hi {user.full_name}!\n\nPlease note, only admins are allowed to clear the lists!')
+    if not valid_command_usage(update, context, user, ADMIN_PRIVILEGE, PUBLIC_COMMAND, 'clearAll'):
+        return
+
+    playing.clear()
+    invited.clear()
+    asked.clear()
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM PLAYING")  # delete current tables
+        cur.execute("DELETE FROM INVITED")
+        cur.execute("DELETE FROM ASKED")
+    conn.commit()
+    return update.message.reply_text('Both lists were cleared by an admin')
 
 
 def transferLiability_command(update, context):
     """Transfer match liability from one player to another"""
     user = update.message.from_user
-    if str(update.message.chat.id) != TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_private_warning(user, 'transferLiability'))
-    if not is_group_admin(update, context, user):
-        return update.message.reply_text(f'Hi {user.full_name}, you\'re not an admin, '
-                                         f'and therefore cannot use the /transferLiability command!')
+    if not valid_command_usage(update, context, user, ADMIN_PRIVILEGE, PUBLIC_COMMAND, 'transferLiability'):
+        return
 
     # message MUST have exactly three entities to be valid: BOT_COMMAND and two TEXT_MENTION or MENTION
     if len(update.message.entities) != 3:
@@ -254,11 +244,8 @@ def transferLiability_command(update, context):
 def liableUser_command(update, context):
     """Grant match liability to a specific player"""
     user = update.message.from_user
-    if str(update.message.chat.id) != TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_private_warning(user, 'liableUser'))
-    if not is_group_admin(update, context, user):
-        return update.message.reply_text(f'Hi {user.full_name}, you\'re not an admin, '
-                                         f'and therefore cannot use the /liableUser command!')
+    if not valid_command_usage(update, context, user, ADMIN_PRIVILEGE, PUBLIC_COMMAND, 'liableUser'):
+        return
 
     # message MUST have exactly two entities to be valid: BOT_COMMAND and TEXT_MENTION or a MENTION
     if len(update.message.entities) != 2:
@@ -289,8 +276,8 @@ def liableUser_command(update, context):
 def help_command(update, context):
     """Send bot help message"""
     user = update.message.from_user
-    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_public_warning(user, 'help'))
+    if not valid_command_usage(update, context, user, MEMBER_PRIVILEGE, PRIVATE_COMMAND, 'help'):
+        return
 
     message = f'Welcome to the *Technion Football Club*\!\n\n'\
               f'This bot\'s purpose is to ease the players\' registration process {OK_SIGN_EMOJI_CODE}\n' \
@@ -313,9 +300,11 @@ def help_command(update, context):
               f'himself from the playing list or if an admin removed one of the players\.\n\n' \
               f'8\. Every matchday, the players on the playing list MUST approve their attendance by 16:00\.\n' \
               f'Players who fail to do so will be removed from the playing list\!\n\n' \
-              f'9\. Creating a list for Monday becomes possible on Saturday evening starting at 21:30\.\n' \
+              f'9\. Training bibs are MANDATORY\!\nPlayers who do not have one, must purchase one to play\.\n' \
+              f'The link for purchasing the agreed\-upon bib can be found here https://t\.me/c/1760505503/5543\n\n' \
+              f'10\. Creating a list for Monday becomes possible on Saturday evening starting at 21:30\.\n' \
               f'Creating a list for Thursday becomes possible on Tuesday evening starting at 21:30\.\n\n' \
-              f'10\. Telegram Bots cannot initiate a conversation with a user \(there is no way around this\)\.\n' \
+              f'11\. Telegram Bots cannot initiate a conversation with a user \(there is no way around this\)\.\n' \
               f'So, when possible, please use bot commands in a private chat @ https://t\.me/FCTechnionBot\n' \
               f'\n*Available user commands* :\n' \
               f'/create \- create a new list\n' \
@@ -345,8 +334,8 @@ def help_command(update, context):
 def create_command(update, context):
     """Create a playing list"""
     user = update.message.from_user
-    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_public_warning(user, 'create'))
+    if not valid_command_usage(update, context, user, MEMBER_PRIVILEGE, PRIVATE_COMMAND, 'create'):
+        return
 
     day = datetime.now(tz=timezone('Asia/Jerusalem')).weekday()
     current_time = datetime.now(tz=timezone('Asia/Jerusalem'))
@@ -375,8 +364,8 @@ def create_command(update, context):
 def add_command(update, context):
     """Add player to the playing list"""
     user = update.message.from_user
-    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_public_warning(user, 'add'))
+    if not valid_command_usage(update, context, user, MEMBER_PRIVILEGE, PRIVATE_COMMAND, 'add'):
+        return
 
     if not user_full_name_is_valid(user):
         return user.send_message(f'Hi {user.full_name}, your telegram name is invalid!\n\n'
@@ -405,8 +394,8 @@ def add_command(update, context):
 def remove_command(update, context):
     """Remove player from the playing list"""
     user = update.message.from_user
-    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_public_warning(user, 'remove'))
+    if not valid_command_usage(update, context, user, MEMBER_PRIVILEGE, PRIVATE_COMMAND, 'remove'):
+        return
 
     player = TechnionFCPlayer(user)
     if player not in playing:
@@ -424,9 +413,8 @@ def remove_command(update, context):
 def liable_command(update, context):
     """Ask the tagged user to assume match liability"""
     user = update.message.from_user
-
-    if str(update.message.chat.id) != TELEGRAM_CHAT_ID:
-        return user.send_message(f'Hi {user.full_name}, the /liable command cannot be used in a private chat!')
+    if not valid_command_usage(update, context, user, MEMBER_PRIVILEGE, PUBLIC_COMMAND, 'liable'):
+        return
 
     player = TechnionFCPlayer(user)
     if player not in playing:
@@ -471,6 +459,9 @@ def liable_command(update, context):
 def accept_command(update, context):
     """Accept admin invitation to join the list"""
     user = update.message.from_user
+    if not valid_command_usage(update, context, user, MEMBER_PRIVILEGE, PUBLIC_COMMAND, 'accept'):
+        return
+
     if user.username not in invited:
         return user.send_message(f'Hi {user.full_name},\nYou were not invited by an admin!')
 
@@ -493,8 +484,8 @@ def accept_command(update, context):
 def approve_command(update, context):
     """Mark player approval for attending the match"""
     user = update.message.from_user
-    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_public_warning(user, 'approve'))
+    if not valid_command_usage(update, context, user, MEMBER_PRIVILEGE, PRIVATE_COMMAND, 'approve'):
+        return
 
     day = datetime.now(tz=timezone('Asia/Jerusalem')).weekday()
     if day not in MATCHDAYS:
@@ -512,6 +503,9 @@ def approve_command(update, context):
 def assume_command(update, context):
     """Assume match liability"""
     user = update.message.from_user
+    if not valid_command_usage(update, context, user, MEMBER_PRIVILEGE, PUBLIC_COMMAND, 'assume'):
+        return
+
     player = TechnionFCPlayer(user)
     if player not in playing:
         return user.send_message(f'Hi {user.full_name}, you\'re not listed at all.\n\n'
@@ -542,8 +536,8 @@ def assume_command(update, context):
 def ball_command(update, context):
     """Mark player approval for bringing a match ball"""
     user = update.message.from_user
-    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_public_warning(user, 'ball'))
+    if not valid_command_usage(update, context, user, MEMBER_PRIVILEGE, PRIVATE_COMMAND, 'ball'):
+        return
 
     player = TechnionFCPlayer(user)
     if player not in playing:
@@ -559,8 +553,8 @@ def ball_command(update, context):
 def print_command(update, context):
     """Print both playing and waiting lists"""
     user = update.message.from_user
-    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_public_warning(user, 'print'))
+    if not valid_command_usage(update, context, user, MEMBER_PRIVILEGE, PRIVATE_COMMAND, 'print'):
+        return
 
     user.send_message(get_lists(), parse_mode='MarkdownV2')
 
@@ -568,8 +562,8 @@ def print_command(update, context):
 def shuffle_command(update, context):
     """Shuffle playing list to create 3 unique teams"""
     user = update.message.from_user
-    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_public_warning(user, 'shuffle'))
+    if not valid_command_usage(update, context, user, MEMBER_PRIVILEGE, PRIVATE_COMMAND, 'shuffle'):
+        return
 
     day = datetime.now(tz=timezone('Asia/Jerusalem')).weekday()
     current_time = datetime.now(tz=timezone('Asia/Jerusalem'))
@@ -609,26 +603,27 @@ def shuffle_command(update, context):
 def rules_command(update, context):
     """Prints the match rules"""
     user = update.message.from_user
-    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_public_warning(user, 'rules'))
+    if not valid_command_usage(update, context, user, MEMBER_PRIVILEGE, PRIVATE_COMMAND, 'rules'):
+        return
 
     message = f'\n{SCROLL_EMOJI_CODE}{SCROLL_EMOJI_CODE}  *Match Rules*  {SCROLL_EMOJI_CODE}{SCROLL_EMOJI_CODE}\n\n' \
               f'0\. There are three \(3\) teams\. Each team consists of five \(5\) players\.\n\n' \
-              f'1\. A match lasts eight \(8\) minutes or up until one team scores two \(2\) goals\.\n\n' \
-              f'2\. In case of a tie, there will be two \(2\) additional minutes of stoppage time\.\n\n' \
-              f'3\. In case the standard time of play passes and the game is still in play, ' \
+              f'1\. Each player must have a blue and green training bib\.\n\n' \
+              f'2\. A match lasts eight \(8\) minutes or up until one team scores two \(2\) goals\.\n\n' \
+              f'3\. In case of a tie, there will be two \(2\) additional minutes of stoppage time\.\n\n' \
+              f'4\. In case the standard time of play passes and the game is still in play, ' \
               f'the match will have one last attack\.\n\n' \
-              f'4\. The "last attack" ends when \(whichever comes first\):\n' \
+              f'5\. The "last attack" ends when \(whichever comes first\):\n' \
               f'    a\. A team gets a goal kick\.\n' \
               f'    b\. The ball has been out for a throw\-out for the third time\.\n' \
               f'    \* corner\-kicks are considered a part of the attack\.\n\n' \
-              f'5\. In case the stoppage time ends in a tie, there are two options:\n' \
+              f'6\. In case the stoppage time ends in a tie, there are two options:\n' \
               f'    a\. The veteran team \(if there is one\) leaves\.\n' \
               f'    b\. Each team gets a penalty kick\.\n' \
               f'        The first team that scores while the other misses, stays\.\n\n' \
-              f'6\. The goalkeeper\'s movement is limited to his team\'s half\.\n\n' \
-              f'7\. The goalkeeper can score a goal\.\n\n' \
-              f'8\. The goalkeeper is replaced in each of the following cases \(whichever comes first\):\n' \
+              f'7\. The goalkeeper\'s movement is limited to his team\'s half\.\n\n' \
+              f'8\. The goalkeeper can score a goal\.\n\n' \
+              f'9\. The goalkeeper is replaced in each of the following cases \(whichever comes first\):\n' \
               f'    a\. He has conceded a goal\.\n' \
               f'    b\. He has been in goal the entire match \(from start to finish\)\.\n\n'
 
@@ -638,8 +633,8 @@ def rules_command(update, context):
 def schedule_command(update, context):
     """Prints the bot's schedule"""
     user = update.message.from_user
-    if str(update.message.chat.id) == TELEGRAM_CHAT_ID:
-        return update.message.reply_text(get_command_in_public_warning(user, 'schedule'))
+    if not valid_command_usage(update, context, user, MEMBER_PRIVILEGE, PRIVATE_COMMAND, 'schedule'):
+        return
 
     message = f'\n{CLIPBOARD_EMOJI_CODE}{CLIPBOARD_EMOJI_CODE}  *Bot schedule*  ' \
               f'{CLIPBOARD_EMOJI_CODE}{CLIPBOARD_EMOJI_CODE}\n\n' \
@@ -798,6 +793,10 @@ def print_lists(context):
         return
     text = f'{POINTING_DOWN_EMOJI_CODE}  Current state of the list  {POINTING_DOWN_EMOJI_CODE}\n\n'
     text += get_lists()
+    if context.job.context:
+        text += f'\n\n{BIB_EMOJI_CODE}{BIB_EMOJI_CODE}{BIB_EMOJI_CODE}' \
+                f'\nDon\'t forget to bring your training bib\!\n' \
+                f'{BIB_EMOJI_CODE}{BIB_EMOJI_CODE}{BIB_EMOJI_CODE}'
     context.bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode='MarkdownV2')
 
 
@@ -838,6 +837,30 @@ def check_accepted(context):
 # endregion
 
 # region HELPER FUNCTIONS
+
+
+def valid_command_usage(update, context, user, privilege, publicity, command):
+    """Check for proper command usage
+
+    For example, check if a command that meant to be sent privately was sent publicly.
+    """
+    if not is_group_member(update, context, user):
+        return False
+
+    if privilege == 'admin' and not is_group_admin(update, context, user):
+        update.message.reply_text(f'Hi {user.full_name},\n'
+                                  f'you\'re not an admin, and therefore cannot use the /{command} command!')
+        return False
+
+    if publicity == 'private' and str(update.message.chat.id) == TELEGRAM_CHAT_ID:
+        update.message.reply_text(get_command_in_public_warning(user, command))
+        return False
+
+    if publicity == 'public' and str(update.message.chat.id) != TELEGRAM_CHAT_ID:
+        update.message.reply_text(get_command_in_private_warning(user, command))
+        return False
+
+    return True
 
 
 def is_group_member(update, context, user):
@@ -1114,7 +1137,8 @@ def main():
                            days=MATCHDAYS)
     dp.job_queue.run_daily(print_lists,
                            time(hour=19, minute=15, tzinfo=timezone('Asia/Jerusalem')),
-                           days=MATCHDAYS)
+                           days=MATCHDAYS,
+                           context=True)
 
     # run clear_list every matchday @ 23:59:59
     dp.job_queue.run_daily(list_cleanup,
