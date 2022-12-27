@@ -294,7 +294,6 @@ def help_command(update, context):
         return
 
     message = f'Welcome to the *Technion Football Club*\!\n\n'\
-              f'This bot\'s purpose is to ease the players\' registration process {OK_SIGN_EMOJI_CODE}\n' \
               f'\n*Club rules* :\n' \
               f'0\. Club matchdays are: _Monday @ 20:30\-22:30, Thursday @ 20:00\-22:00_\n' \
               f'If you can not attend the FULL 2 hours, please refrain from adding yourself to the list\.\n\n' \
@@ -302,24 +301,31 @@ def help_command(update, context):
               f'NO SPECIAL CHARACTERS ALLOWED\!\!\!\n\n' \
               f'2\. Players must be either Technion students \(or married to one\) or \n' \
               f'Technion Pre\-Academic Prep\. School students \(or married to one\)\. There are no exceptions\!\n\n' \
-              f'3\. List creator will be liable for the match, which means he must ensure all players have a ' \
+              f'3\. Only one of the admins is authorized to approve the participation of Technion students who are\n' \
+              f'not a part of our group on a one\-time basis\. This option is only available in unique cases\.\n\n' \
+              f'4\. Training bibs are *MANDATORY\!*\nPlayers who do not have one, must purchase one to play\.\n' \
+              f'The link for purchasing the agreed\-upon bib can be found here https://t\.me/c/1760505503/5543\n\n' \
+              f'5\. Creating a list for Monday becomes possible on Saturday evening starting at 21:30\.\n' \
+              f'Creating a list for Thursday becomes possible on Tuesday evening starting at 21:30\.\n\n' \
+              f'6\. List creator will be liable for the match, which means he must ensure all players have a ' \
               f'"Green Pass" and a student card in effect \(every player is responsible for bringing his\)\.\n' \
               f'In addition, he\'ll be ASAT\'s point of contact regarding any possible match\-related inquiries\.\n\n' \
-              f'4\. If the list creator wishes to remove himself from the list, he must ensure that another player ' \
+              f'7\. If the list creator wishes to remove himself from the list, he must ensure that another player ' \
               f'assumes match liability\. Failing to do so will force an admin to clear the list\.\n\n' \
-              f'5\. Players can only add themselves, and only once\!\n\n' \
-              f'6\. If the list is already full \(max list size is 15 players\), ' \
+              f'8\. Players can only add themselves, and only once\!\n\n' \
+              f'9\. If the list is already full \(max list size is 15 players\), ' \
               f'the player will be placed on a waiting list \(will be created automatically\)\.\n\n' \
-              f'7\. Moving from the waiting list to the playing list is possible only if one of the players removes ' \
+              f'10\. Moving from the waiting list to the playing list is possible only if one of the players removes ' \
               f'himself from the playing list or if an admin removed one of the players\.\n\n' \
-              f'8\. Every matchday, the players on the playing list MUST approve their attendance by 16:00\.\n' \
+              f'11\. Every matchday, the players on the playing list MUST approve their attendance by 16:00\.\n' \
               f'Players who fail to do so will be removed from the playing list\!\n\n' \
-              f'9\. Training bibs are MANDATORY\!\nPlayers who do not have one, must purchase one to play\.\n' \
-              f'The link for purchasing the agreed\-upon bib can be found here https://t\.me/c/1760505503/5543\n\n' \
-              f'10\. Creating a list for Monday becomes possible on Saturday evening starting at 21:30\.\n' \
-              f'Creating a list for Thursday becomes possible on Tuesday evening starting at 21:30\.\n\n' \
-              f'11\. Telegram Bots cannot initiate a conversation with a user \(there is no way around this\)\.\n' \
-              f'So, when possible, please use bot commands in a private chat @ https://t\.me/FCTechnionBot\n' \
+              f'12\. Arrival approval for a match becomes mandatory if 15 players approve their arrival before\n' \
+              f'the deadline \(for approving attendance\)\. If fewer than 15 people have approved their attendance,\n' \
+              f'cancellations can be made up to two hours before the game\.\n' \
+              f'Afterward, all players who confirmed their arrival must attend\.\n\n' \
+              f'13\. Telegram Bots cannot initiate a conversation with a user \(there is no way around this\)\.\n' \
+              f'So, when possible, please use bot commands in a private chat @ https://t\.me/FCTechnionBot\n\n' \
+              f'\nThe @FCTechnionBot was created to ease the players\' registration process {OK_SIGN_EMOJI_CODE}\n' \
               f'\n*Available user commands* :\n' \
               f'/create \- create a new list\n' \
               f'/add \- add yourself to the list\n' \
