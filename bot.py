@@ -4,7 +4,7 @@ import random
 from datetime import datetime, time
 from pytz import timezone
 from collections import deque
-from psycopg2 import OperationalError, DatabaseError
+from psycopg2 import OperationalError, DatabaseError, InterfaceError, Error
 
 from telegram import User, TelegramError
 from telegram.ext import Updater, CommandHandler
@@ -719,12 +719,9 @@ def backup_to_database(context):
                 # cur.execute inserted value must be a tuple
                 cur.execute("INSERT INTO ASKED (user_id_or_name) VALUES(%s)", (user_id_or_name,))
                 db_connection.commit()
-    except OperationalError as err:
+    except Error as err:
         print(err)
-        sql_database.init_connection()
-    except DatabaseError as err:
-        print(err)
-        db_connection.rollback()
+        sql_database.restart_connection()
 
 
 def kindly_reminder(context):

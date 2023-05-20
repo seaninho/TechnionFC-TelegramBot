@@ -18,6 +18,16 @@ class PostgreSqlDb:
         """Get the PostgreSQL database connection"""
         return self._connection
 
+    def restart_connection(self):
+        """Restart the PostgreSQL database connection"""
+        # Close the old connection
+        if self._connection:
+            if self._connection.cursor():
+                self._connection.cursor().close()
+            self._connection.close()
+        # Reconnect
+        self.init_connection()
+
     def _connect(self):
         """Create a connection to the PostgreSQL database"""
         if os.environ.get("HEROKU"):
