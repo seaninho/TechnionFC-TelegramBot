@@ -596,18 +596,15 @@ def shuffle_command(update, context):
 
     day = datetime.now(tz=timezone('Asia/Jerusalem')).weekday()
     current_time = datetime.now(tz=timezone('Asia/Jerusalem'))
-    # shuffle is allowed only on matchdays and only past 19:30
-    if day not in MATCHDAYS or current_time.time() < time(hour=19, minute=30, tzinfo=timezone('Asia/Jerusalem')):
-        return user.send_message(f'Hi {user.full_name}, '
-                                 f'shuffle command is reserved for matchdays, starting from 19:30!')
-
-    min_for_shuffle = 12
-    if len(playing) < min_for_shuffle:
-        return user.send_message(f'Hi {user.full_name}, there aren\'t enough players for a match shuffle...')
+    # shuffle is allowed only on matchdays
+    if day not in MATCHDAYS:
+        return user.send_message(f'Hi {user.full_name}, shuffle command is reserved only for matchdays!')
 
     teams = {}
     colors = ('Red', 'Green', 'Blue')
     players = [player for player in playing if playing.index(player) < LIST_MAX_SIZE]
+    for i in range(LIST_MAX_SIZE - len(players)):
+        players += [f'External {i}']
     random.shuffle(players)
 
     text = 'One possible way to divide into 3 teams\n\n'
@@ -624,7 +621,11 @@ def shuffle_command(update, context):
                    f'{CIRCLE_BLUE_EMOJI_CODE}{CIRCLE_BLUE_EMOJI_CODE}\n\n'
         team_players = teams[color]
         for player in team_players:
-            text += f'{team_players.index(player) + 1}\. {player.user.first_name} {player.user.last_name}\n'
+            text += f'{team_players.index(player) + 1}\. '
+            if isinstance(player, str):
+                text += f'{player}\n'
+            else:
+                text += f'{player.user.first_name} {player.user.last_name}\n'
         text += '\n'
     user.send_message(text, parse_mode='MarkdownV2')
 
