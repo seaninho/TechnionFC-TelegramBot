@@ -39,6 +39,17 @@ class PostgreSqlDb:
         cur = self._connection.cursor()
 
         # cur.execute("DROP TABLE playing")
+        cur.execute("CREATE TABLE IF NOT EXISTS PLAYERS ("
+                    "   user_id BIGINT,"
+                    "   user_first_name VARCHAR,"
+                    "   user_last_name VARCHAR,"
+                    "   user_username VARCHAR,"
+                    "   player_banned BOOLEAN NOT NULL,"
+                    "   player_ban_duration INT NOT NULL,"
+                    "   player_rating NUMERIC(3, 2) NOT NULL CHECK (player_rating BETWEEN 1.00 AND 5.00),"
+                    "   player_rated_by BIGINT[] NOT NULL,"
+                    "   PRIMARY KEY (user_id, user_first_name, user_last_name, user_username))")
+
         cur.execute("CREATE TABLE IF NOT EXISTS PLAYING ("
                     "   user_id BIGINT,"
                     "   user_first_name VARCHAR,"
