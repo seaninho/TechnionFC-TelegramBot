@@ -649,7 +649,7 @@ def rules_command(update, context):
               f'    \* corner\-kicks are considered a part of the attack\.\n\n' \
               f'6\. In case the stoppage time ends in a tie, there are two options:\n' \
               f'    a\. The veteran team \(if there is one\) leaves\.\n' \
-              f'    b\. Each team gets a penalty kick\.\n' \
+              f'    b\. Each team gets two penalty kicks\.\n' \
               f'        The first team that scores while the other misses, stays\.\n\n' \
               f'7\. The goalkeeper\'s movement is limited to his team\'s half\.\n\n' \
               f'8\. The goalkeeper can score a goal\.\n\n' \
