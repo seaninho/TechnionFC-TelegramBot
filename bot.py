@@ -117,6 +117,32 @@ def addUser_command(update, context):
                               f'you were added to the playing list by {user.full_name}!')
 
 
+def addExternal_command(update, context):
+    """Add a non-group member to the playing list"""
+    user = update.message.from_user
+    if not valid_command_usage(update, context, user, ADMIN_PRIVILEGE, PUBLIC_COMMAND, 'addExternal'):
+        return
+
+    # message MUST have at least two arguments to be valid (Full names must include both first and last names)
+    if len(context.args) < 2:
+        return update.message.reply_text(f'Hi {user.full_name}, please provide the full name '
+                                         f'of the external player you wish to add!')
+
+    ext_player_first_name = context.args[0]
+    ext_player_last_name = ' '.join(str(arg) for arg in context.args[1:])
+    ext_player_full_name = f'{ext_player_first_name} {ext_player_last_name}'
+    ext_user = User(-int(round(datetime.now().timestamp())), first_name=ext_player_first_name, is_bot=False,
+                    last_name=ext_player_last_name)
+    ext_player = TechnionFCPlayer(ext_user, approved=True)
+
+    if ext_player in playing:
+        return update.message.reply_text(f'Hi {user.full_name}, {ext_player_full_name} is already on the playing list!')
+
+    playing.append(ext_player)
+    update.message.reply_text(f'External player named {ext_player_full_name} added to the playing list '
+                              f'by {user.full_name}!')
+
+
 def removeUser_command(update, context):
     """Remove tagged user from the playing list"""
     user = update.message.from_user
@@ -1125,6 +1151,7 @@ def main():
     dp.add_handler(CommandHandler("rules", rules_command))
     dp.add_handler(CommandHandler("schedule", schedule_command))
     dp.add_handler(CommandHandler("addUser", addUser_command))
+    dp.add_handler(CommandHandler("addExternal", addExternal_command))
     dp.add_handler(CommandHandler("removeUser", removeUser_command))
     dp.add_handler(CommandHandler("createList", createList_command))
     dp.add_handler(CommandHandler("clearAll", clearAll_command))
