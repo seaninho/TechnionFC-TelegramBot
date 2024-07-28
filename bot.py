@@ -325,16 +325,16 @@ def help_command(update, context):
               f'If you can not attend the FULL 2 hours, please refrain from adding yourself to the list\.\n\n' \
               f'1\. Players MUST use their full names in their telegram profiles \(Hebrew or English\)\.\n' \
               f'NO SPECIAL CHARACTERS ALLOWED\!\!\!\n\n' \
-              f'2\. Players must be either Technion students \(or married to one\) or \n' \
-              f'Technion Pre\-Academic Prep\. School students \(or married to one\)\. There are no exceptions\!\n\n' \
-              f'3\. Only one of the admins is authorized to approve the participation of Technion students who are\n' \
-              f'not a part of our group on a one\-time basis\. This option is only available in unique cases\.\n\n' \
+              f'2\. Players must be either Technion students or Technion Pre\-Academic Prep\. School students\.\n' \
+              f'Group admins must authorize exceptions\.\n\n' \
+              f'3\. External players \(Technion students who are not part of our group\) can only be added if ' \
+              f'the list is not full and with the approval of one of the group admins\.\n\n' \
               f'4\. Training bibs are *MANDATORY\!*\nPlayers who do not have one, must purchase one to play\.\n' \
               f'The link for purchasing the agreed\-upon bib can be found here https://t\.me/c/1760505503/5543\n\n' \
               f'5\. Creating a list for Monday becomes possible on Saturday evening starting at 21:30\.\n' \
               f'Creating a list for Thursday becomes possible on Tuesday evening starting at 21:30\.\n\n' \
               f'6\. List creator will be liable for the match, which means he must ensure all players have a ' \
-              f'"Green Pass" and a student card in effect \(every player is responsible for bringing his\)\.\n' \
+              f'student card in effect \(every player is responsible for bringing his\)\.\n' \
               f'In addition, he\'ll be ASAT\'s point of contact regarding any possible match\-related inquiries\.\n\n' \
               f'7\. If the list creator wishes to remove himself from the list, he must ensure that another player ' \
               f'assumes match liability\. Failing to do so will force an admin to clear the list\.\n\n' \
@@ -349,9 +349,8 @@ def help_command(update, context):
               f'the deadline \(for approving attendance\)\. If fewer than 15 people have approved their attendance,\n' \
               f'cancellations can be made up to two hours before the game\.\n' \
               f'Afterward, all players who confirmed their arrival must attend\.\n\n' \
-              f'13\. Telegram Bots cannot initiate a conversation with a user \(there is no way around this\)\.\n' \
-              f'So, when possible, please use bot commands in a private chat @ https://t\.me/FCTechnionBot\n\n' \
-              f'\nThe @FCTechnionBot was created to ease the players\' registration process {OK_SIGN_EMOJI_CODE}\n' \
+              f'13\. The @FCTechnionBot was created to ease the players\' registration process\.\n' \
+              f'Please use bot commands in a private chat @ https://t\.me/FCTechnionBot \(when possible\)\.\n\n' \
               f'\n*Available user commands* :\n' \
               f'/create \- create a new list\n' \
               f'/add \- add yourself to the list\n' \
