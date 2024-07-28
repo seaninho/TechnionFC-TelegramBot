@@ -352,26 +352,28 @@ def help_command(update, context):
               f'13\. The @FCTechnionBot was created to ease the players\' registration process\.\n' \
               f'Please use bot commands in a private chat @ https://t\.me/FCTechnionBot \(when possible\)\.\n\n' \
               f'\n*Available user commands* :\n' \
+              f'/print \- print the list\n' \
               f'/create \- create a new list\n' \
               f'/add \- add yourself to the list\n' \
               f'/remove \- remove yourself from the list\n' \
-              f'/liable \- ask the tagged user to assume match liability\n' \
-              f'/accept \- accept admin invitation to join the list\n' \
               f'/approve \- approve you\'ll be attending the match\n' \
-              f'/assume \- assume match liability\n' \
               f'/ball \- inform you\'ll be bringing a match ball\n' \
-              f'/print \- print the list\n' \
               f'/shuffle \- shuffle the playing list to create 3 random teams\n' \
               f'/rules \- print match rules\n' \
               f'/schedule \- print the bot\'s schedule\n' \
+              f'/liable \- ask the tagged user to assume match liability\n' \
+              f'/assume \- assume match liability\n' \
+              f'/accept \- accept admin invitation to join the list\n' \
+              f'/help \- view club rules and available bot commands\n' \
               f'\n*Available only to admins* :\n' \
               f'/start \- start the bot\n' \
-              f'/addUser \- add the tagged user to the list\n' \
-              f'/removeUser \- remove the tagged user from the list\n' \
               f'/createList \- create a new list with tagged users\n' \
               f'/clearAll \- clear the list\n' \
-              f'/transferLiability \- transfer match liability between tagged users\n' \
-              f'/liableUser \- grant match liability to the tagged user\n'
+              f'/addUser \- add the tagged user to the list\n' \
+              f'/removeUser \- remove the tagged user from the list\n' \
+              f'/addExternal \- add External player to the list\n' \
+              f'/liableUser \- grant match liability to the tagged user\n' \
+              f'/transferLiability \- transfer match liability between tagged users\n'
 
     user.send_message(message, parse_mode='MarkdownV2')
 
