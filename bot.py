@@ -933,37 +933,32 @@ def valid_command_usage(update, context, user, privilege, publicity, command):
 
 def is_group_member(update, context, user):
     """Check if user is a group member"""
-    user_is_group_member = True
     try:
         chat_member = context.bot.get_chat_member(TELEGRAM_CHAT_ID, user.id)
         if chat_member.status in ('left', 'kicked'):
-            user_is_group_member = False
             update.message.reply_text(f'Hi {user.full_name},\n'
                                       f'you are not a part of the Technion FC group anymore...\n\n'
                                       f'To rejoin our group, please use {TELEGRAM_GROUP_INVITE_LINK}')
+            return False
+        return True
     except TelegramError:
-        user_is_group_member = False
         update.message.reply_text(f'Hi {user.full_name},\n'
                                   f'you are not a part of the Technion FC group...\n\n'
                                   f'To join our group, please use {TELEGRAM_GROUP_INVITE_LINK}')
-    finally:
-        return user_is_group_member
-
+        return False
 
 def is_group_admin(update, context, user):
     """Check if user is a group admin"""
-    user_is_group_admin = False
     try:
         chat_member = context.bot.get_chat_member(TELEGRAM_CHAT_ID, user.id)
         if chat_member.status in ('creator', 'administrator'):
-            user_is_group_admin = True
+            return True
+        return False
     except TelegramError:
         update.message.reply_text(f'Hi {user.full_name},\n'
                                   f'you are not a part of the Technion FC group...\n\n'
                                   f'To join our group, please use {TELEGRAM_GROUP_INVITE_LINK}')
-    finally:
-        return user_is_group_admin
-
+        return False
 
 def user_full_name_is_valid(user):
     """Check if user's full name is valid"""
