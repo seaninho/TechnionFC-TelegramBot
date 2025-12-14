@@ -4,7 +4,7 @@ import random
 from datetime import datetime, time
 from pytz import timezone
 from collections import deque
-from psycopg2 import OperationalError, DatabaseError, InterfaceError, Error
+from psycopg import OperationalError, DatabaseError, Error
 
 from telegram import User, TelegramError
 from telegram.ext import Updater, CommandHandler
@@ -236,17 +236,18 @@ def clearAll_command(update, context):
     invited.clear()
     asked.clear()
     try:
+        db_connection = sql_database.get_connection()
         with db_connection.cursor() as cur:
             cur.execute("DELETE FROM PLAYING")  # delete current tables
             cur.execute("DELETE FROM INVITED")
             cur.execute("DELETE FROM ASKED")
         db_connection.commit()
     except OperationalError as err:
-        print(err)
-        sql_database.init_connection()
+        logger.error(f"Operational error: {err}")
+        sql_database.restart_connection()
         return update.message.reply_text('Database operational error occurred. Please view the log...')
     except DatabaseError as err:
-        print(err)
+        logger.error(f"Database error: {err}")
         db_connection.rollback()
         return update.message.reply_text('Database error occurred. Please view the log...')
     return update.message.reply_text('Both lists were cleared by an admin')
@@ -576,14 +577,16 @@ def assume_command(update, context):
 
     asked.clear()
     try:
+        db_connection = sql_database.get_connection()
         with db_connection.cursor() as cur:
             cur.execute("DELETE FROM ASKED")
+        db_connection.commit()
     except OperationalError as err:
-        print(err)
-        sql_database.init_connection()
+        logger.error(f"Operational error: {err}")
+        sql_database.restart_connection()
         return update.message.reply_text('Database operational error occurred. Please view the log...')
     except DatabaseError as err:
-        print(err)
+        logger.error(f"Database error: {err}")
         db_connection.rollback()
         return update.message.reply_text('Database error occurred. Please view the log...')
     context.bot.send_message(TELEGRAM_CHAT_ID, f'{user.full_name} has assumed match liability!')
@@ -719,6 +722,7 @@ def schedule_command(update, context):
 def backup_to_database(context):
     """Backup list to database"""
     try:
+        db_connection = sql_database.get_connection()
         with db_connection.cursor() as cur:
             cur.execute("DELETE FROM PLAYING")  # delete current table
             for player in playing:
@@ -734,21 +738,21 @@ def backup_to_database(context):
                             "VALUES(%s, %s, %s, %s, %s, %s, %s)",
                             (user_id, user_first_name, user_last_name, user_username,
                              player_liable, player_approved, player_match_ball))
-                db_connection.commit()
+            db_connection.commit()
 
             cur.execute("DELETE FROM INVITED")
             for username in invited:
                 # cur.execute inserted value must be a tuple
                 cur.execute("INSERT INTO INVITED (username) VALUES(%s)", (username,))
-                db_connection.commit()
+            db_connection.commit()
 
             cur.execute("DELETE FROM ASKED")
             for user_id_or_name in asked:
                 # cur.execute inserted value must be a tuple
                 cur.execute("INSERT INTO ASKED (user_id_or_name) VALUES(%s)", (user_id_or_name,))
-                db_connection.commit()
+            db_connection.commit()
     except Error as err:
-        print(err)
+        logger.error(f"Backup error: {err}")
         sql_database.restart_connection()
 
 
@@ -870,16 +874,17 @@ def list_cleanup(context):
     invited.clear()
     asked.clear()
     try:
+        db_connection = sql_database.get_connection()
         with db_connection.cursor() as cur:
             cur.execute("DELETE FROM PLAYING")  # delete current tables
             cur.execute("DELETE FROM INVITED")
             cur.execute("DELETE FROM ASKED")
         db_connection.commit()
     except OperationalError as err:
-        print(err)
-        sql_database.init_connection()
+        logger.error(f"Operational error during cleanup: {err}")
+        sql_database.restart_connection()
     except DatabaseError as err:
-        print(err)
+        logger.error(f"Database error during cleanup: {err}")
         db_connection.rollback()
     text += 'List was cleared by the bot\!'
     context.bot.send_message(chat_id=context.job.context, text=text, parse_mode='MarkdownV2')
@@ -1091,6 +1096,7 @@ def error(update, context):
 def restore_from_database():
     """Restore playing list from database back up"""
     try:
+        db_connection = sql_database.get_connection()
         with db_connection.cursor() as cur:
             cur.execute("SELECT * FROM PLAYING")
             players_data = cur.fetchall()
@@ -1099,11 +1105,13 @@ def restore_from_database():
             cur.execute("SELECT * FROM ASKED")
             asked_data = cur.fetchall()
     except OperationalError as err:
-        print(err)
-        sql_database.init_connection()
+        logger.error(f"Operational error during restore: {err}")
+        sql_database.restart_connection()
+        return
     except DatabaseError as err:
-        print(err)
+        logger.error(f"Database error during restore: {err}")
         db_connection.rollback()
+        return
 
     for player_data in players_data:
         (user_id, user_first_name, user_last_name, user_username,
